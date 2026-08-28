@@ -42,7 +42,7 @@ router.post('/command', (req, res) => {
     (!c.profileId || c.profileId === profileId)
   );
   if (cmd) {
-    return res.json({ ok: true, kind: 'command', responseType: cmd.responseType || 'text', text: cmd.responseText || '' });
+    return res.json({ ok: true, kind: 'command', responseType: cmd.responseType || 'text', text: cmd.responseText || '', redirectUrl: cmd.redirectUrl || null });
   }
 
   for (const chain of (db.chains || [])) {
