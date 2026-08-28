@@ -195,6 +195,7 @@ const SCHEMAS = {
     columns: [
       { key:'trigger', label:'Команда' },
       { key:'profileId', label:'Профиль', render: v => v ? (profilesCache.find(p=>p.id===v)?.displayName || '—') : 'глобальная' },
+      { key:'redirectUrl', label:'Редирект', render: v => v ? '🔗' : '—' },
       { key:'published', label:'Статус', render: v => `<span class="pill ${v!==false?'on':''}">${v!==false?'активна':'выключена'}</span>`, toggle:true }
     ],
     fields: [
@@ -202,9 +203,8 @@ const SCHEMAS = {
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'responseText', label:'Текст ответа терминала', type:'textarea', big:true },
       { key:'redirectUrl', label:'Переход на URL после ответа (необязательно)', type:'text', 
-  placeholder:'https://... или /page/coordinates',
-  hint:'если заполнено — через 2 секунды после вывода ответа терминал откроет эту ссылку. http(s) откроется в новой вкладке, относительный путь — в текущей' },
-      { key:'redirectUrl', label:'Редирект', render: v => v ? '🔗 есть' : '—' },
+        placeholder:'https://... или /page/coordinates',
+        hint:'если заполнено — через 2 секунды после вывода ответа терминал откроет эту ссылку' },
       { key:'published', label:'Активна', type:'checkbox', default:true }
     ]
   },
@@ -572,32 +572,32 @@ function renderForm(tab, existing){
   
   document.getElementById('btn-cancel').addEventListener('click', () => { holder.innerHTML = ''; });
   
-document.getElementById('btn-preview').addEventListener('click', () => {
-  const existing = currentFormExisting;
-  const tab = currentFormTab;
-  
-  if(tab === 'pages' && existing && existing.slug){
-    window.open(`/page/${existing.slug}`, '_blank');
-  } else if(tab === 'profiles' && existing){
-    window.open('/', '_blank');
-    toast('Войди в терминале под логином профиля для проверки', 'success');
-  } else if(tab === 'commands' && existing){
-    window.open('/', '_blank');
-    toast(`Введи команду «${existing.trigger}» в терминале`, 'success');
-  } else if(tab === 'chains' && existing){
-    window.open('/', '_blank');
-    toast('Введи код цепочки в терминале', 'success');
-  } else if(tab === 'eggs' && existing){
-    window.open('/', '_blank');
-    if(existing.trigger === '__wrong_login__'){
-      toast('Попробуй войти с неверным паролем', 'success');
+  document.getElementById('btn-preview').addEventListener('click', () => {
+    const existing = currentFormExisting;
+    const tab = currentFormTab;
+    
+    if(tab === 'pages' && existing && existing.slug){
+      window.open(`/page/${existing.slug}`, '_blank');
+    } else if(tab === 'profiles' && existing){
+      window.open('/', '_blank');
+      toast('Войди в терминале под логином профиля для проверки', 'success');
+    } else if(tab === 'commands' && existing){
+      window.open('/', '_blank');
+      toast(`Введи команду «${existing.trigger}» в терминале`, 'success');
+    } else if(tab === 'chains' && existing){
+      window.open('/', '_blank');
+      toast('Введи код цепочки в терминале', 'success');
+    } else if(tab === 'eggs' && existing){
+      window.open('/', '_blank');
+      if(existing.trigger === '__wrong_login__'){
+        toast('Попробуй войти с неверным паролем', 'success');
+      } else {
+        toast(`Введи триггер «${existing.trigger}» в терминале`, 'success');
+      }
     } else {
-      toast(`Введи триггер «${existing.trigger}» в терминале`, 'success');
+      toast('Сначала сохрани запись, потом превью', 'error');
     }
-  } else {
-    toast('Сначала сохрани запись, потом превью', 'error');
-  }
-});
+  });
   
   document.getElementById('btn-save').addEventListener('click', saveForm);
   
