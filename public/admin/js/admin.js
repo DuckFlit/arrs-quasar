@@ -201,6 +201,10 @@ const SCHEMAS = {
       { key:'trigger', label:'Команда (что вводит игрок в терминале)', type:'text', required:true, placeholder:'whoami2 / codeword / whatever' },
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'responseText', label:'Текст ответа терминала', type:'textarea', big:true },
+      { key:'redirectUrl', label:'Переход на URL после ответа (необязательно)', type:'text', 
+  placeholder:'https://... или /page/coordinates',
+  hint:'если заполнено — через 2 секунды после вывода ответа терминал откроет эту ссылку. http(s) откроется в новой вкладке, относительный путь — в текущей' },
+      { key:'redirectUrl', label:'Редирект', render: v => v ? '🔗 есть' : '—' },
       { key:'published', label:'Активна', type:'checkbox', default:true }
     ]
   },
@@ -568,15 +572,41 @@ function renderForm(tab, existing){
   
   document.getElementById('btn-cancel').addEventListener('click', () => { holder.innerHTML = ''; });
   
-  document.getElementById('btn-preview').addEventListener('click', () => {
-    if(tab === 'pages' && existing){
+document.getElementById('btn-preview').addEventListener('click', () => {
+  const existing = currentFormExisting;
+  
+  if(tab === 'pages'){
+    if(existing && existing.slug){
       window.open(`/page/${existing.slug}`, '_blank');
-    } else if(tab === 'profiles' && existing){
-      window.open('/', '_blank');
     } else {
-      toast('Превью доступно только для сохранённых записей', 'error');
+      const slugInput = document.getElementById('f-slug');
+      const slug = slugInput ? slugInput.value.trim() : '';
+      if(slug){
+        toast('Сначала нажми «Сохранить», потом превью', 'error');
+      } else {
+        toast('Заполни slug', 'error');
+      }
     }
-  });
+  } else if(tab === 'profiles'){
+    window.open('/', '_blank');
+    toast('Войди в терминале под логином профиля для проверки', 'success');
+  } else if(tab === 'commands'){
+    window.open('/', '_blank');
+    toast(`Введи команду «${existing?.trigger || ''}» в терминале`, 'success');
+  } else if(tab === 'chains'){
+    window.open('/', '_blank');
+    toast('Введи код цепочки в терминале', 'success');
+  } else if(tab === 'eggs'){
+    window.open('/', '_blank');
+    if(existing?.trigger === '__wrong_login__'){
+      toast('Попробуй войти с неверным паролем', 'success');
+    } else {
+      toast(`Введи триггер «${existing?.trigger || ''}» в терминале`, 'success');
+    }
+  } else {
+    toast('Превью недоступно для этого типа', 'error');
+  }
+});
   
   document.getElementById('btn-save').addEventListener('click', saveForm);
   
