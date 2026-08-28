@@ -215,6 +215,16 @@ async function handleCommand(raw){
   if(data && data.ok){
     if(data.kind === 'command'){
       String(data.text || '').split('\n').forEach(line => printLine(escapeHtml(line), 'out-dim'));
+      if(data.redirectUrl){
+        printLine(`&rarr; redirecting to <a href="${escapeHtml(data.redirectUrl)}" style="color:var(--sig-cyan)" target="_blank">${escapeHtml(data.redirectUrl)}</a>`, 'out-cyan');
+        setTimeout(() => {
+          if(data.redirectUrl.startsWith('http://') || data.redirectUrl.startsWith('https://')){
+            window.open(data.redirectUrl, '_blank');
+          } else {
+            window.location.href = data.redirectUrl;
+          }
+        }, 2000);
+      }
     } else if(data.kind === 'chain'){
       printLine(escapeHtml(data.message || 'ACCESS UNLOCKED.'), 'out-ok');
       if(data.pageSlug){
