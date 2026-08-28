@@ -574,37 +574,28 @@ function renderForm(tab, existing){
   
 document.getElementById('btn-preview').addEventListener('click', () => {
   const existing = currentFormExisting;
+  const tab = currentFormTab;
   
-  if(tab === 'pages'){
-    if(existing && existing.slug){
-      window.open(`/page/${existing.slug}`, '_blank');
-    } else {
-      const slugInput = document.getElementById('f-slug');
-      const slug = slugInput ? slugInput.value.trim() : '';
-      if(slug){
-        toast('Сначала нажми «Сохранить», потом превью', 'error');
-      } else {
-        toast('Заполни slug', 'error');
-      }
-    }
-  } else if(tab === 'profiles'){
+  if(tab === 'pages' && existing && existing.slug){
+    window.open(`/page/${existing.slug}`, '_blank');
+  } else if(tab === 'profiles' && existing){
     window.open('/', '_blank');
     toast('Войди в терминале под логином профиля для проверки', 'success');
-  } else if(tab === 'commands'){
+  } else if(tab === 'commands' && existing){
     window.open('/', '_blank');
-    toast(`Введи команду «${existing?.trigger || ''}» в терминале`, 'success');
-  } else if(tab === 'chains'){
+    toast(`Введи команду «${existing.trigger}» в терминале`, 'success');
+  } else if(tab === 'chains' && existing){
     window.open('/', '_blank');
     toast('Введи код цепочки в терминале', 'success');
-  } else if(tab === 'eggs'){
+  } else if(tab === 'eggs' && existing){
     window.open('/', '_blank');
-    if(existing?.trigger === '__wrong_login__'){
+    if(existing.trigger === '__wrong_login__'){
       toast('Попробуй войти с неверным паролем', 'success');
     } else {
-      toast(`Введи триггер «${existing?.trigger || ''}» в терминале`, 'success');
+      toast(`Введи триггер «${existing.trigger}» в терминале`, 'success');
     }
   } else {
-    toast('Превью недоступно для этого типа', 'error');
+    toast('Сначала сохрани запись, потом превью', 'error');
   }
 });
   
