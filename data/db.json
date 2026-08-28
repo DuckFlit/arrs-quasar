@@ -1,0 +1,138 @@
+{
+  "settings": {
+    "siteTitle": "ARRS",
+    "nodeTag": "NODE 14-4 KORD",
+    "subtitle": "Automated Radio Relay Service"
+  },
+  "profiles": [
+    {
+      "id": "demo-cooper",
+      "createdAt": 0,
+      "displayName": "CW2 EMMA COOPER",
+      "callsign": "PUSSYCAT",
+      "login": "cooper",
+      "passwordHash": "$2b$10$EYxpTdUywtWQDmKwzjwlqOpUG5yRt2nO3rBWcjpjcMKS2ZKhC/7Nq",
+      "stampText": "RESTRICTED // PERSONNEL FILE",
+      "portrait": "",
+      "audioUrl": "",
+      "meta": [
+        {
+          "label": "Born",
+          "value": "Houston, Texas"
+        },
+        {
+          "label": "Branch",
+          "value": "U.S. Air Force — Air Wing"
+        },
+        {
+          "label": "Assignment",
+          "value": "Attached, 10th Mountain Division"
+        },
+        {
+          "label": "Rank",
+          "value": "Warrant Officer 2 (CW2)"
+        }
+      ],
+      "stats": [
+        {
+          "label": "Combat Hours",
+          "value": "53"
+        },
+        {
+          "label": "Total Flight Hrs",
+          "value": "740"
+        },
+        {
+          "label": "Generation Aviator",
+          "value": "2"
+        },
+        {
+          "label": "Sticks of Gum / Sortie",
+          "value": "1"
+        }
+      ],
+      "sections": [
+        {
+          "title": "Семья и происхождение",
+          "body": "Родилась и выросла в Хьюстоне, Техас, в семье с глубокими военными корнями. Отец служил в <b>MARSOC</b>, мать летала на боевые вылеты в Ираке."
+        },
+        {
+          "title": "Личные заметки",
+          "body": "Детство описывает как далеко не строгое на практике — домашние вечеринки, ночные прогулки, первый поцелуй с <b>Джинни Кроунс</b>."
+        },
+        {
+          "title": "Отношения и характер",
+          "body": "Предана боевым братьям и сёстрам. Контрактников из ЧВК считает друзьями. Любит полёты, стрельбу и жвачку."
+        }
+      ],
+      "tags": [
+        "Предана своему крылу",
+        "Уважает ЧВК-контрактников",
+        "Всегда со жвачкой",
+        "Пилот во втором поколении"
+      ],
+      "bars": [
+        {
+          "label": "Combat Sorties",
+          "value": "53 hrs",
+          "pct": 17
+        },
+        {
+          "label": "Total Airframe",
+          "value": "740 hrs",
+          "pct": 100
+        }
+      ],
+      "published": true
+    }
+  ],
+  "commands": [
+    {
+      "id": "demo-cmd-1",
+      "createdAt": 0,
+      "trigger": "coffee",
+      "profileId": null,
+      "responseText": "the coffee machine on this node has been offline since 2024.\nsomeone should really fix that.",
+      "published": true
+    }
+  ],
+  "chains": [
+    {
+      "id": "demo-chain-1",
+      "createdAt": 0,
+      "name": "Demo chain",
+      "profileId": null,
+      "steps": [
+        {
+          "id": "s0",
+          "order": 0,
+          "triggerValue": "10-4-kord",
+          "unlockMessage": "Сигнал расшифрован. Координаты приняты.",
+          "unlockPageSlug": "demo"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "demo-page-1",
+      "createdAt": 0,
+      "slug": "demo",
+      "title": "Демо-страница",
+      "bodyHtml": "<h1>Это пример отдельной страницы</h1><p>Такие страницы можно открывать по коду из цепочек или просто по прямой ссылке /page/demo.</p>",
+      "published": true
+    }
+  ],
+  "eggs": [
+    {
+      "id": "demo-egg-wrong-login",
+      "createdAt": 0,
+      "trigger": "__wrong_login__",
+      "profileId": null,
+      "caption": "HA HA HA",
+      "soundStyle": "laugh",
+      "asciiFrames": [],
+      "published": true
+    }
+  ]
+}

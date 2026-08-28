@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARRS // ADMIN CONSOLE</title>
+<link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<section id="admin-login-screen" class="center-screen">
+  <div class="login-card">
+    <div class="brand">ARRS <span>// ADMIN</span></div>
+    <div class="brand-sub">restricted console — authorized personnel only</div>
+    <form id="admin-login-form">
+      <label>Логин
+        <input type="text" id="al-user" autocomplete="username" required>
+      </label>
+      <label>Пароль
+        <input type="password" id="al-pass" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="btn-primary">Войти</button>
+      <div id="admin-login-msg" class="msg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="admin-dashboard" class="hidden">
+  <aside class="sidebar">
+    <div class="brand small">ARRS <span>// ADMIN</span></div>
+    <nav>
+      <button class="nav-btn active" data-tab="profiles">Профили</button>
+      <button class="nav-btn" data-tab="commands">Команды</button>
+      <button class="nav-btn" data-tab="chains">Цепочки</button>
+      <button class="nav-btn" data-tab="pages">Страницы</button>
+      <button class="nav-btn" data-tab="eggs">Пасхалки</button>
+      <button class="nav-btn" data-tab="settings">Настройки сайта</button>
+    </nav>
+    <button id="admin-logout" class="btn-ghost">Выйти</button>
+    <a href="/" target="_blank" class="site-link">↗ открыть сайт</a>
+  </aside>
+
+  <main id="admin-main"></main>
+</div>
+
+<script src="/admin/js/admin.js"></script>
+</body>
+</html>

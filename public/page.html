@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARRS // PAGE</title>
+<link rel="stylesheet" href="/css/site.css">
+<style>
+  .page-wrap{ max-width:760px; margin:0 auto; padding:60px 20px 100px; color:var(--green); min-height:100vh;
+    background:radial-gradient(ellipse at 50% 0%, #0d1410 0%, var(--sig-bg) 60%); }
+  .page-wrap h1{ font-family:'Black Ops One'; color:var(--phosphor); font-size:26px; text-shadow:0 0 10px var(--phosphor-soft); }
+  .page-wrap a.back{ display:inline-block; margin-bottom:24px; color:var(--cyan); font-size:12px; letter-spacing:.1em; text-transform:uppercase; text-decoration:none; }
+  .page-wrap .body{ font-size:14px; line-height:1.85; }
+  .not-found{ text-align:center; padding:120px 20px; color:var(--green-dim); font-size:13px; letter-spacing:.1em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+<div class="page-wrap" id="page-wrap">
+  <a class="back" href="/">&larr; back to terminal</a>
+  <div id="page-content">loading...</div>
+</div>
+<script>
+(async function(){
+  const slug = location.pathname.split('/').filter(Boolean).pop();
+  const res = await fetch('/api/public/page/' + encodeURIComponent(slug));
+  const el = document.getElementById('page-content');
+  if(res.ok){
+    const page = await res.json();
+    el.innerHTML = `<h1>${(page.title||'').replace(/</g,'&lt;')}</h1><div class="body">${page.bodyHtml || ''}</div>`;
+  } else {
+    el.innerHTML = `<div class="not-found">PAGE NOT FOUND OR NOT PUBLISHED</div>`;
+  }
+})();
+</script>
+</body>
+</html>
