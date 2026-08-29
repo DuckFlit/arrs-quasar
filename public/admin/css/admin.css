@@ -680,3 +680,43 @@ input:checked + .toggle-slider:before{
   margin:10px 0;
   color:var(--ink);
 }
+
+/* ===== визуальный конструктор (blocklist) ===== */
+.blocklist{ display:flex; flex-direction:column; gap:10px; margin-bottom:10px; }
+.block-empty{ font-size:11.5px; color:var(--green-dim); border:1px dashed var(--line); padding:12px; text-align:center; }
+.block-card{ border:1px solid var(--line); background:rgba(0,0,0,.25); padding:12px; }
+.block-card-fields{ display:flex; flex-direction:column; gap:8px; }
+.bf label{ display:block; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--green-dim); margin-bottom:4px; }
+.bf input, .bf textarea{ width:100%; background:rgba(0,0,0,.35); border:1px solid var(--green-dim); color:var(--ink); font-family:inherit; font-size:12.5px; padding:7px 9px; outline:none; }
+.bf input:focus, .bf textarea:focus{ border-color:var(--phosphor); }
+.bf textarea{ min-height:70px; resize:vertical; line-height:1.5; }
+.bf-narrow{ max-width:140px; }
+.block-card-actions{ display:flex; gap:6px; margin-top:10px; }
+.block-up, .block-down, .block-remove{ background:none; border:1px solid var(--green-dim); color:var(--green); font-size:12px; padding:4px 9px; }
+.block-up:hover, .block-down:hover{ border-color:var(--phosphor); color:var(--phosphor); }
+.block-remove{ border-color:var(--alert); color:var(--alert); }
+.block-remove:hover{ background:rgba(255,59,48,.08); }
+.block-up:disabled, .block-down:disabled{ opacity:.35; cursor:not-allowed; }
+.btn-add-block{ background:none; border:1px dashed var(--green-dim); color:var(--green); font-size:11.5px; padding:7px 12px; margin-top:2px; }
+.btn-add-block:hover{ border-color:var(--phosphor); color:var(--phosphor); }
+
+/* ===== чипы (теги) ===== */
+.chiplist{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--cyan); color:var(--cyan); font-size:11px; padding:3px 8px; }
+.chip-x{ background:none; border:none; color:var(--cyan); font-size:12px; padding:0 2px; }
+.chip-x:hover{ color:var(--alert); }
+
+.chip-input{
+  width:100%;
+  background:rgba(0,0,0,.35);
+  border:1px solid var(--green-dim);
+  color:var(--ink);
+  font-family:inherit;
+  font-size:12px;
+  padding:7px 9px;
+  outline:none;
+}
+
+.chip-input:focus{
+  border-color:var(--phosphor);
+}
