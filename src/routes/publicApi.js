@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { readDb } = require('../db');
+const { nanoid } = require('nanoid');
+const { readDb, writeDb } = require('../db');
 
 const router = express.Router();
 
@@ -28,13 +29,23 @@ router.post('/login', (req, res) => {
   res.json({ ok: true, profile: sanitizeProfile(profile) });
 });
 
+function visitorId(req, res){
+  let vid = req.cookies && req.cookies.arrs_vid;
+  if(!vid){
+    vid = nanoid(12);
+    res.cookie('arrs_vid', vid, { maxAge: 365*24*60*60*1000, httpOnly: true, sameSite: 'lax' });
+  }
+  return vid;
+}
+
 // ---- выполнение команды терминала (после входа или в гостевом режиме) ----
-router.post('/command', (req, res) => {
+router.post('/command', async (req, res) => {
   const { profileId, input } = req.body || {};
   const value = String(input || '').trim();
   if (!value) return res.json({ ok: false });
   const lower = value.toLowerCase();
   const db = readDb();
+  const vid = visitorId(req, res);
 
   const cmd = (db.commands || []).find(c =>
     c.published !== false &&
@@ -47,12 +58,40 @@ router.post('/command', (req, res) => {
 
   for (const chain of (db.chains || [])) {
     if (chain.profileId && chain.profileId !== profileId) continue;
-    const step = (chain.steps || []).find(s => s.triggerValue && s.triggerValue.toLowerCase() === lower);
-    if (step) {
-      return res.json({
-        ok: true, kind: 'chain', message: step.unlockMessage || '', pageSlug: step.unlockPageSlug || null
-      });
+    const steps = chain.steps || [];
+    const idx = steps.findIndex(s => s.triggerValue && s.triggerValue.toLowerCase() === lower);
+    if (idx === -1) continue;
+
+    // цепочка с выключенным порядком — старое поведение
+    if (chain.ordered === false) {
+      return res.json({ ok: true, kind: 'chain', message: steps[idx].unlockMessage || '', pageSlug: steps[idx].unlockPageSlug || null });
     }
+
+    const solved = ((db.progress || {})[vid] || {})[chain.id] || 0;
+
+    if (idx < solved) {
+      // уже решено — даём перечитать
+      return res.json({ ok: true, kind: 'chain', repeat: true, message: steps[idx].unlockMessage || '', pageSlug: steps[idx].unlockPageSlug || null });
+    }
+
+    if (idx > solved) {
+      // код из будущего
+      return res.json({ ok: true, kind: 'chain', locked: true,
+        message: `INTERCEPT: code recognized, but the sequence is incomplete. [${solved}/${steps.length}] keys accepted.` });
+    }
+
+    // верный следующий шаг
+    db.progress = db.progress || {};
+    db.progress[vid] = db.progress[vid] || {};
+    db.progress[vid][chain.id] = solved + 1;
+    await writeDb(db);
+
+    return res.json({
+      ok: true, kind: 'chain',
+      message: steps[idx].unlockMessage || '',
+      pageSlug: steps[idx].unlockPageSlug || null,
+      chainDone: solved + 1 >= steps.length
+    });
   }
 
   const egg = (db.eggs || []).find(e =>
