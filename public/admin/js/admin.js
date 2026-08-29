@@ -103,7 +103,104 @@ function enterDashboard(){
 checkSession();
 
 /* ============================================================
-   DSL encode/decode
+   BLOCK LIST EDITOR — визуальный конструктор для списков
+   (мета-поля, статы, разделы биографии, бары, шаги цепочек, кадры пасхалок)
+   вместо ручного ввода текстовых DSL-строк.
+============================================================ */
+function blockSubFieldHtml(bf, val){
+  const safeVal = val == null ? '' : val;
+  if(bf.type === 'textarea'){
+    return `<div class="bf"><label>${esc(bf.label)}</label><textarea data-bf="${esc(bf.key)}">${esc(safeVal)}</textarea></div>`;
+  }
+  if(bf.type === 'number'){
+    return `<div class="bf bf-narrow"><label>${esc(bf.label)}</label><input type="number" data-bf="${esc(bf.key)}" value="${esc(safeVal)}"></div>`;
+  }
+  return `<div class="bf"><label>${esc(bf.label)}</label><input type="text" data-bf="${esc(bf.key)}" value="${esc(safeVal)}"></div>`;
+}
+
+function blockCardHtml(f, obj, idx, total){
+  return `
+    <div class="block-card" data-idx="${idx}">
+      <div class="block-card-fields">
+        ${f.blockFields.map(bf => blockSubFieldHtml(bf, obj[bf.key])).join('')}
+      </div>
+      <div class="block-card-actions">
+        <button type="button" class="block-up" data-idx="${idx}" title="Вверх" ${idx===0?'disabled':''}>↑</button>
+        <button type="button" class="block-down" data-idx="${idx}" title="Вниз" ${idx===total-1?'disabled':''}>↓</button>
+        <button type="button" class="block-remove" data-idx="${idx}" title="Удалить">✕</button>
+      </div>
+    </div>`;
+}
+
+function mountBlocklist(f, container, addBtn, initialArr){
+  let arr = (initialArr || []).map(item => f.flatten ? { [f.flatten]: item } : { ...item });
+
+  function redraw(){
+    container.innerHTML = arr.length
+      ? arr.map((obj, idx) => blockCardHtml(f, obj, idx, arr.length)).join('')
+      : `<div class="block-empty">пусто — нажми «+ добавить», чтобы создать первый элемент</div>`;
+
+    container.querySelectorAll('.block-remove').forEach(btn => {
+      btn.addEventListener('click', () => { arr.splice(+btn.dataset.idx, 1); redraw(); });
+    });
+    container.querySelectorAll('.block-up').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.idx;
+        if(i > 0){ [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; redraw(); }
+      });
+    });
+    container.querySelectorAll('.block-down').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.idx;
+        if(i < arr.length - 1){ [arr[i+1], arr[i]] = [arr[i], arr[i+1]]; redraw(); }
+      });
+    });
+    container.querySelectorAll('[data-bf]').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const idx = +inp.closest('.block-card').dataset.idx;
+        const key = inp.dataset.bf;
+        arr[idx][key] = inp.type === 'number' ? (parseInt(inp.value, 10) || 0) : inp.value;
+      });
+    });
+  }
+  redraw();
+
+  addBtn.addEventListener('click', () => {
+    const blank = {};
+    f.blockFields.forEach(bf => { blank[bf.key] = bf.type === 'number' ? 0 : ''; });
+    arr.push(blank);
+    redraw();
+  });
+
+  container._getValue = () => f.flatten ? arr.map(o => o[f.flatten]) : arr.map(o => ({ ...o }));
+}
+
+function mountChiplist(f, container, inputEl, initialArr){
+  let arr = [...(initialArr || [])];
+
+  function redraw(){
+    container.innerHTML = arr.map((t, idx) =>
+      `<span class="chip">${esc(t)}<button type="button" class="chip-x" data-idx="${idx}">×</button></span>`
+    ).join('');
+    container.querySelectorAll('.chip-x').forEach(btn => {
+      btn.addEventListener('click', () => { arr.splice(+btn.dataset.idx, 1); redraw(); });
+    });
+  }
+  redraw();
+
+  inputEl.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ','){
+      e.preventDefault();
+      const val = inputEl.value.trim().replace(/,$/, '');
+      if(val){ arr.push(val); inputEl.value = ''; redraw(); }
+    }
+  });
+
+  container._getValue = () => [...arr];
+}
+
+/* ============================================================
+   DSL encode/decode (оставлено для обратной совместимости старых полей)
 ============================================================ */
 const DSL = {
   pairs: {
@@ -182,11 +279,20 @@ const SCHEMAS = {
       { key:'stampText', label:'Текст штампа сверху', type:'text', placeholder:'RESTRICTED // PERSONNEL FILE' },
       { key:'portrait', label:'Портрет', type:'image' },
       { key:'audioUrl', label:'Ссылка на аудиотрек (необязательно)', type:'text', placeholder:'https://...' },
-      { key:'meta', label:'Мета-поля', type:'dsl:pairs' },
-      { key:'stats', label:'Статистика (числа сверху)', type:'dsl:pairs' },
-      { key:'sections', label:'Разделы биографии', type:'dsl:sections', big:true },
-      { key:'tags', label:'Теги', type:'dsl:tags' },
-      { key:'bars', label:'Прогресс-бары', type:'dsl:bars' },
+      { key:'meta', label:'Мета-поля', type:'blocklist', blockLabel:'поле',
+        blockFields:[ {key:'label', label:'Название', type:'text'}, {key:'value', label:'Значение', type:'text'} ] },
+      { key:'stats', label:'Статистика (числа сверху)', type:'blocklist', blockLabel:'показатель',
+        blockFields:[ {key:'label', label:'Название', type:'text'}, {key:'value', label:'Число', type:'text'} ] },
+      { key:'sections', label:'Разделы биографии', type:'blocklist', big:true, blockLabel:'раздел',
+        blockFields:[ {key:'title', label:'Заголовок', type:'text'}, {key:'body', label:'Текст (можно с <b>HTML</b>)', type:'textarea'} ] },
+      { key:'tags', label:'Теги', type:'chiplist', hint:'печатай тег и жми Enter' },
+      { key:'bars', label:'Прогресс-бары', type:'blocklist', blockLabel:'бар',
+        blockFields:[ {key:'label', label:'Название', type:'text'}, {key:'value', label:'Подпись (напр. "53 hrs")', type:'text'}, {key:'pct', label:'Заполнение %', type:'number'} ] },
+      { key:'showDossier', label:'Показывать досье при входе', type:'checkbox', default:true,
+        hint:'выключи, если этот логин/пароль — просто "ключ" для разблокировки команд/цепочек/пасхалок, а само досье показывать не нужно' },
+      { key:'accentColor', label:'Акцентный цвет досье', type:'color', default:'#ffb000',
+        hint:'основной цвет свечения (замена фосфорного амбера)' },
+      { key:'secondaryColor', label:'Второй цвет (текст разделов)', type:'color', default:'#7ea87a' },
       { key:'published', label:'Опубликован', type:'checkbox' }
     ]
   },
@@ -218,7 +324,9 @@ const SCHEMAS = {
     fields: [
       { key:'name', label:'Название цепочки', type:'text', required:true },
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
-      { key:'steps', label:'Шаги / коды', type:'dsl:steps', big:true }
+      { key:'steps', label:'Шаги / коды', type:'blocklist', big:true, blockLabel:'шаг',
+        blockFields:[ {key:'triggerValue', label:'Код', type:'text'}, {key:'unlockMessage', label:'Сообщение при разгадке', type:'text'}, {key:'unlockPageSlug', label:'Slug страницы (необязательно)', type:'text'} ],
+        mapOut: (arr) => arr.map((s,i) => ({ id:'s'+i, order:i, triggerValue:s.triggerValue||'', unlockMessage:s.unlockMessage||'', unlockPageSlug:s.unlockPageSlug||null })) }
     ]
   },
   pages: {
@@ -248,7 +356,9 @@ const SCHEMAS = {
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'caption', label:'Подпись под анимацией', type:'text', placeholder:'HA HA HA' },
       { key:'soundStyle', label:'Звук', type:'select', options:[['laugh','смех (пиксельный)'],['beep','короткий сигнал'],['none','без звука']] },
-      { key:'asciiFrames', label:'ASCII-кадры анимации', type:'dsl:frames', big:true },
+      { key:'asciiFrames', label:'ASCII-кадры анимации', type:'blocklist', big:true, blockLabel:'кадр', flatten:'value',
+        blockFields:[ {key:'value', label:'ASCII-арт кадра (моноширинный текст)', type:'textarea'} ],
+        hint:'если оставить пустым — используется дефолтный смеющийся скелетик. добавь второй кадр для анимации моргания/смеха' },
       { key:'published', label:'Активна', type:'checkbox', default:true }
     ]
   }
@@ -437,6 +547,26 @@ function fieldToHtml(f, value){
       </div>`;
   }
   
+  if(f.type === 'blocklist'){
+    return `
+      <div class="field blocklist-field">
+        <label>${esc(f.label)}</label>
+        <div class="blocklist" id="f-${f.key}"></div>
+        <button type="button" class="btn-add-block" id="addblock-${f.key}">+ Добавить ${esc(f.blockLabel || 'элемент')}</button>
+        ${hint}
+      </div>`;
+  }
+
+  if(f.type === 'chiplist'){
+    return `
+      <div class="field">
+        <label for="chipinput-${f.key}">${esc(f.label)}</label>
+        <div class="chiplist" id="f-${f.key}"></div>
+        <input type="text" class="chip-input" id="chipinput-${f.key}" placeholder="введи и нажми Enter">
+        ${hint}
+      </div>`;
+  }
+
   if(f.type === 'textarea' || f.type.startsWith('dsl:')){
     let text = v;
     if(f.type.startsWith('dsl:')){
@@ -480,12 +610,16 @@ function fieldToHtml(f, value){
 
 function readFieldValue(f){
   const el = document.getElementById('f-' + f.key);
-  if(f.type === 'checkbox') return el.checked;
-  if(f.type.startsWith('dsl:')){
+  let val;
+  if(f.type === 'checkbox') val = el.checked;
+  else if(f.type.startsWith('dsl:')){
     const dslKind = f.type.split(':')[1];
-    return DSL[dslKind].decode(el.value);
+    val = DSL[dslKind].decode(el.value);
   }
-  return el.value;
+  else if(f.type === 'blocklist' || f.type === 'chiplist') val = el._getValue ? el._getValue() : [];
+  else val = el.value;
+  if(f.mapOut) val = f.mapOut(val);
+  return val;
 }
 
 let currentFormTab = null;
@@ -517,6 +651,22 @@ function renderForm(tab, existing){
   
   holder.scrollIntoView({ behavior:'smooth', block:'center' });
   
+  // Block-list fields (мета/статы/разделы/бары/шаги/кадры) — визуальный конструктор
+  schema.fields.filter(f => f.type === 'blocklist').forEach(f => {
+    const container = document.getElementById(`f-${f.key}`);
+    const addBtn = document.getElementById(`addblock-${f.key}`);
+    const initial = existing ? existing[f.key] : (f.default || []);
+    mountBlocklist(f, container, addBtn, initial);
+  });
+
+  // Chip-list fields (теги)
+  schema.fields.filter(f => f.type === 'chiplist').forEach(f => {
+    const container = document.getElementById(`f-${f.key}`);
+    const inputEl = document.getElementById(`chipinput-${f.key}`);
+    const initial = existing ? existing[f.key] : (f.default || []);
+    mountChiplist(f, container, inputEl, initial);
+  });
+
   // Image upload handlers
   schema.fields.filter(f => f.type === 'image').forEach(f => {
     const zone = document.getElementById(`zone-${f.key}`);
@@ -620,7 +770,10 @@ async function saveForm(){
   for(const f of schema.fields){
     if(f.required){
       const el = document.getElementById('f-' + f.key);
-      if(!el.value.trim()){
+      const isBlockish = f.type === 'blocklist' || f.type === 'chiplist';
+      const raw = isBlockish ? (el._getValue ? el._getValue() : []) : el.value;
+      const isEmpty = isBlockish ? (!raw || !raw.length) : !raw.trim();
+      if(isEmpty){
         msg.textContent = `поле «${f.label}» обязательно`; msg.className = 'form-msg';
         return;
       }
@@ -695,6 +848,15 @@ async function renderSettingsTab(){
       <div class="field"><label>Название (лого)</label><input type="text" id="s-siteTitle" value="${esc(settings.siteTitle||'')}"></div>
       <div class="field"><label>Подзаголовок</label><input type="text" id="s-subtitle" value="${esc(settings.subtitle||'')}"></div>
       <div class="field"><label>Тег узла</label><input type="text" id="s-nodeTag" value="${esc(settings.nodeTag||'')}"></div>
+      <div class="field">
+        <label>Акцентный цвет входа (циан на экране логина)</label>
+        <input type="color" id="s-accentColor" value="${esc(settings.accentColor || '#5fd0d6')}">
+      </div>
+      <div class="field">
+        <label>Цвет досье по умолчанию (фосфор)</label>
+        <input type="color" id="s-dossierColor" value="${esc(settings.dossierColor || '#ffb000')}">
+        <span class="fhint">используется, если у профиля не задан свой акцентный цвет</span>
+      </div>
       <div class="form-actions">
         <button class="btn-save" id="btn-save-settings">💾 Сохранить</button>
       </div>
@@ -723,7 +885,9 @@ async function renderSettingsTab(){
     const payload = {
       siteTitle: document.getElementById('s-siteTitle').value,
       subtitle: document.getElementById('s-subtitle').value,
-      nodeTag: document.getElementById('s-nodeTag').value
+      nodeTag: document.getElementById('s-nodeTag').value,
+      accentColor: document.getElementById('s-accentColor').value,
+      dossierColor: document.getElementById('s-dossierColor').value
     };
     const { ok } = await api('PUT', '/api/admin/settings', payload);
     msg.textContent = ok ? 'сохранено' : 'ошибка сохранения';
