@@ -233,56 +233,59 @@ body{ margin:0; background:var(--sig-bg); color:var(--sig-ink); font-family:'IBM
   .logo-block{ filter:none; transform:none; }
 }
 
-/* ===== скроллбар: фосфорный сигнал с аберрацией ===== */
+/* ===== скроллбар: циановый сигнал с аберрацией (под палитру главной) ===== */
 :root{ color-scheme: dark; }
 
 ::-webkit-scrollbar{ width:12px; height:12px; }
 
-/* трек — «рельса» с лентой сканлайнов */
+/* трек — тёмная рельса с циановой лентой сканлайнов */
 ::-webkit-scrollbar-track{
   background:
-    repeating-linear-gradient(0deg, rgba(126,168,122,.07) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(95,208,214,.06) 0 1px, transparent 1px 3px),
     linear-gradient(90deg, #05070a, #0a0f0c 50%, #05070a);
-  border-left:1px solid rgba(126,168,122,.15);
+  border-left:1px solid rgba(95,208,214,.12);
 }
 
-/* ползунок — янтарный сигнал со сканлайнами и RGB-каймой */
+/* ползунок — циановый сигнал со сканлайнами и каймой: красная слева, розовая справа (как у лого) */
 ::-webkit-scrollbar-thumb{
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #ffb000, #8f6100);
+    linear-gradient(180deg, #5fd0d6, #275e63);
   border:2px solid #05070a;
   border-radius:6px;
   box-shadow:
-    inset 0 0 6px rgba(255,176,0,.6),
-    -2px 0 0 rgba(255,59,48,.35),   /* красная кайма слева */
-    2px 0 0 rgba(95,208,214,.35);   /* циановая справа */
+    inset 0 0 6px rgba(95,208,214,.55),
+    -2px 0 0 rgba(255,59,48,.3),
+    2px 0 0 rgba(242,203,228,.35);
 }
 
 /* навёл — сигнал разгорается */
 ::-webkit-scrollbar-thumb:hover{
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #ffc233, #ffb000);
+    linear-gradient(180deg, #8fe3e8, #5fd0d6);
   box-shadow:
-    inset 0 0 10px rgba(255,176,0,.9),
-    0 0 14px rgba(255,176,0,.55),
-    -2px 0 0 rgba(255,59,48,.55),
-    2px 0 0 rgba(95,208,214,.55);
+    inset 0 0 10px rgba(95,208,214,.9),
+    0 0 14px rgba(95,208,214,.5),
+    -2px 0 0 rgba(255,59,48,.5),
+    2px 0 0 rgba(242,203,228,.6);
 }
 
-/* зажал — ещё ярче */
+/* зажал — вспыхивает почти белым */
 ::-webkit-scrollbar-thumb:active{
-  background: linear-gradient(180deg, #ffd766, #ffc233);
+  background:linear-gradient(180deg, #c8f6f8, #8fe3e8);
   box-shadow:
-    inset 0 0 12px rgba(255,215,102,1),
-    0 0 18px rgba(255,176,0,.8),
+    inset 0 0 12px rgba(200,246,248,.95),
+    0 0 18px rgba(95,208,214,.8),
     -2px 0 0 rgba(255,59,48,.7),
-    2px 0 0 rgba(95,208,214,.7);
+    2px 0 0 rgba(242,203,228,.8);
 }
 
 ::-webkit-scrollbar-corner{ background:#05070a; }
 ::-webkit-scrollbar-button{ display:none; height:0; width:0; }
 
-/* Firefox (умеет только цвета, но хоть в палитре) */
-html{ scrollbar-width:thin; scrollbar-color:#8f6100 #05070a; }
+/* внутренний скроллбар панели терминала — тоньше */
+#term-panel::-webkit-scrollbar{ width:9px; }
+
+/* Firefox */
+html{ scrollbar-width:thin; scrollbar-color:#275e63 #05070a; }
