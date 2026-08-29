@@ -194,6 +194,7 @@ async function handleCommand(raw){
     printLine('  status   — node signal status', 'out-dim');
     printLine('  clear    — clear the screen', 'out-dim');
     printLine('  ...additional commands may exist. this terminal rewards curiosity.', 'out-dim');
+    printLine('  dossier  — reopen your personnel file', 'out-dim');
     return;
   }
   if(cmd === 'login'){
@@ -212,6 +213,16 @@ async function handleCommand(raw){
   }
   if(cmd === 'clear'){
     outEl.innerHTML = '';
+    return;
+  }
+  if(cmd === 'dossier' || cmd === 'file'){
+    if(currentProfile && currentProfile.showDossier !== false){
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('crt2').classList.add('show');
+      renderDossier(currentProfile);
+    } else {
+      printLine('no personnel file bound to this session.', 'out-dim');
+    }
     return;
   }
 
@@ -349,6 +360,20 @@ function showDossier(){
   renderDossier(currentProfile);
 }
 
+function backToTerminal(){
+  document.getElementById('crt2').classList.remove('show');
+  document.getElementById('dossier').classList.remove('show');
+  const ls = document.getElementById('login-screen');
+  ls.classList.remove('flash-out');
+  ls.classList.remove('hidden');
+  inputEl.type = 'text';
+  mode = 'cmd';
+  const handle = (currentProfile.login || currentProfile.displayName || 'user').toLowerCase().replace(/[^a-z0-9]+/g,'') || 'user';
+  setPrefix(`[ ${handle}@arrs.host : ~ ] # `);
+  printLine('session restored. type <b>dossier</b> to reopen your file, <b>help</b> for commands.', 'out-cyan');
+  inputEl.focus();
+}
+
 /* ---------------- dossier rendering (fully data-driven) ---------------- */
 function renderDossier(p){
   const el = document.getElementById('dossier');
@@ -396,6 +421,7 @@ function renderDossier(p){
     <div class="footer-console">
       ${p.audioUrl ? `<div class="audio-toggle" id="audio-toggle"><span class="dot" id="audio-dot"></span><span id="audio-label">Track: Off</span></div>` : '<div></div>'}
       ${p.audioUrl ? `<canvas id="scope" width="220" height="46"></canvas>` : ''}
+      <button class="back-term" id="back-term">&gt;_ Terminal</button>
       <button class="logout" id="logout-btn">Log Out</button>
     </div>
     ${p.audioUrl ? `<audio id="track" src="${p.audioUrl}" preload="none" loop></audio>` : ''}
@@ -408,6 +434,7 @@ function renderDossier(p){
   setInterval(tickClock, 1000);
 
   document.getElementById('logout-btn').addEventListener('click', () => location.reload());
+  document.getElementById('back-term').addEventListener('click', backToTerminal);
   if(p.audioUrl) wireAudio();
 }
 
