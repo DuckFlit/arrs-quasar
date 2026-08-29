@@ -351,6 +351,7 @@ const SCHEMAS = {
       { key:'trigger', label:'Триггер' },
       { key:'profileId', label:'Профиль', render: v => v ? (profilesCache.find(p=>p.id===v)?.displayName || '—') : 'глобальная' },
       { key:'soundStyle', label:'Звук' },
+      { key:'redirectUrl', label:'Редирект', render: v => v ? '🔗' : '—' },
       { key:'published', label:'Статус', render: v => `<span class="pill ${v!==false?'on':''}">${v!==false?'активна':'выключена'}</span>`, toggle:true }
     ],
     fields: [
@@ -358,6 +359,9 @@ const SCHEMAS = {
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'caption', label:'Подпись под анимацией', type:'text', placeholder:'HA HA HA' },
       { key:'soundStyle', label:'Звук', type:'select', options:[['laugh','смех (пиксельный)'],['beep','короткий сигнал'],['none','без звука']] },
+      { key:'redirectUrl', label:'Переход на URL после анимации (необязательно)', type:'text',
+  placeholder:'https://... или /page/...',
+  hint:'если заполнено — через ~2 секунды после анимации откроется ссылка: http(s) в новой вкладке, относительный путь в текущей' },
       { key:'asciiFrames', label:'ASCII-кадры анимации', type:'blocklist', big:true, blockLabel:'кадр', flatten:'value',
         blockFields:[ {key:'value', label:'ASCII-арт кадра (моноширинный текст)', type:'textarea'} ],
         hint:'если оставить пустым — используется дефолтный смеющийся скелетик. добавь второй кадр для анимации моргания/смеха' },
