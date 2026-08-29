@@ -231,9 +231,16 @@ async function handleCommand(raw){
         }, 2000);
       }
     } else if(data.kind === 'chain'){
-      printLine(escapeHtml(data.message || 'ACCESS UNLOCKED.'), 'out-ok');
-      if(data.pageSlug){
-        printLine(`&rarr; new page unlocked: <a href="/page/${encodeURIComponent(data.pageSlug)}" style="color:var(--sig-cyan)" target="_blank">/page/${escapeHtml(data.pageSlug)}</a>`, 'out-cyan');
+      if(data.locked){
+        printLine(escapeHtml(data.message), 'out-err');
+        jolt();
+      } else {
+        printLine(escapeHtml(data.message || 'ACCESS UNLOCKED.'), 'out-ok');
+        if(data.repeat) printLine('(code already accepted earlier)', 'out-dim');
+        if(data.chainDone) printLine('&rarr; CHAIN COMPLETE. all keys accepted.', 'out-cyan');
+        if(data.pageSlug){
+          printLine(`&rarr; new page unlocked: <a href="/page/${encodeURIComponent(data.pageSlug)}" style="color:var(--sig-cyan)" target="_blank">/page/${escapeHtml(data.pageSlug)}</a>`, 'out-cyan');
+        }
       }
     } else if(data.kind === 'egg'){
       spawnEgg({
