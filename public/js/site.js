@@ -259,6 +259,17 @@ async function handleCommand(raw){
         caption: data.egg.caption,
         soundStyle: data.egg.soundStyle
       });
+      if(data.egg.redirectUrl){
+        const url = data.egg.redirectUrl;
+        printLine(`&rarr; redirecting to <a href="${escapeHtml(url)}" style="color:var(--sig-cyan)" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`, 'out-cyan');
+        setTimeout(() => {
+          if(url.startsWith('http://') || url.startsWith('https://')){
+            window.open(url, '_blank');
+          } else {
+            window.location.href = url;
+          }
+        }, 2000);
+      }
     }
     return;
   }
