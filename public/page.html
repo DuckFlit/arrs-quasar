@@ -27,6 +27,14 @@
   if(res.ok){
     const page = await res.json();
     el.innerHTML = `<h1>${(page.title||'').replace(/</g,'&lt;')}</h1><div class="body">${page.bodyHtml || ''}</div>`;
+    
+    // выполнять инлайн-скрипты из bodyHtml (без этого <script> внутри HTML страницы игнорится браузером)
+    el.querySelectorAll('script').forEach(oldScript => {
+      const newScript = document.createElement('script');
+      [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
   } else {
     el.innerHTML = `<div class="not-found">PAGE NOT FOUND OR NOT PUBLISHED</div>`;
   }
