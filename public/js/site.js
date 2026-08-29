@@ -12,6 +12,7 @@ let pendingUser = '';
 let attempts = 0;
 let locked = false;
 let currentProfile = null;
+let siteSettings = {};
 
 /* ---------------- helpers ---------------- */
 function printLine(html, cls){
@@ -41,12 +42,16 @@ async function api(method, url, body){
 (async function loadMeta(){
   const { data } = await api('GET', '/api/public/site');
   if(data){
+    siteSettings = data;
     if(data.siteTitle){
       const t = document.getElementById('site-title');
       t.textContent = data.siteTitle; t.setAttribute('data-text', data.siteTitle);
     }
     if(data.subtitle) document.getElementById('site-subtitle').textContent = data.subtitle;
     if(data.nodeTag) document.getElementById('site-node').textContent = data.nodeTag;
+    // цветовая гамма, заданная в админке (Настройки сайта)
+    if(data.accentColor) document.documentElement.style.setProperty('--sig-cyan', data.accentColor);
+    if(data.dossierColor) document.documentElement.style.setProperty('--phosphor', data.dossierColor);
   }
 })();
 
@@ -257,11 +262,24 @@ async function handlePass(raw){
 
   if(data && data.ok){
     currentProfile = data.profile;
-    printLine('AUTHENTICATION OK — decrypting archive...', 'out-ok');
-    mode = 'decrypt';
-    setPrefix('');
-    inputEl.blur();
-    runDecrypt();
+    if(currentProfile.showDossier === false){
+      // "тихий" логин — просто ключ для разблокировки команд/цепочек/пасхалок,
+      // без визуального досье
+      printLine('AUTHENTICATION OK.', 'out-ok');
+      printLine('session bound. additional commands may now respond differently.', 'out-dim');
+      attempts = 0;
+      mode = 'cmd';
+      const handle = (currentProfile.displayName || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'user';
+      setPrefix(`[ ${handle}@arrs.host : ~ ] # `);
+      inputEl.type = 'text';
+      inputEl.focus();
+    } else {
+      printLine('AUTHENTICATION OK — decrypting archive...', 'out-ok');
+      mode = 'decrypt';
+      setPrefix('');
+      inputEl.blur();
+      runDecrypt();
+    }
   } else {
     attempts++;
     if(attempts >= 3){
@@ -327,6 +345,10 @@ function showDossier(){
 /* ---------------- dossier rendering (fully data-driven) ---------------- */
 function renderDossier(p){
   const el = document.getElementById('dossier');
+
+  // цветовая гамма конкретного профиля (если задана) — переопределяет фосфор/зелёный только внутри досье
+  if(p.accentColor) el.style.setProperty('--phosphor', p.accentColor);
+  if(p.secondaryColor) el.style.setProperty('--green', p.secondaryColor);
 
   const metaHtml = (p.meta || []).map(m => `<div><b>${escapeHtml(m.label)}</b><span>${escapeHtml(m.value)}</span></div>`).join('');
   const statsHtml = (p.stats || []).map(s => `
