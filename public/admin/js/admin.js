@@ -324,6 +324,8 @@ const SCHEMAS = {
     fields: [
       { key:'name', label:'Название цепочки', type:'text', required:true },
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
+      { key:'ordered', label:'Строгий порядок шагов', type:'checkbox', default:true,
+  hint:'если включено — коды нужно вводить по очереди; код из «будущего» шага даст ошибку последовательности. Прогресс игрока хранится на сервере по cookie.' },
       { key:'steps', label:'Шаги / коды', type:'blocklist', big:true, blockLabel:'шаг',
         blockFields:[ {key:'triggerValue', label:'Код', type:'text'}, {key:'unlockMessage', label:'Сообщение при разгадке', type:'text'}, {key:'unlockPageSlug', label:'Slug страницы (необязательно)', type:'text'} ],
         mapOut: (arr) => arr.map((s,i) => ({ id:'s'+i, order:i, triggerValue:s.triggerValue||'', unlockMessage:s.unlockMessage||'', unlockPageSlug:s.unlockPageSlug||null })) }
