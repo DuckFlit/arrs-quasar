@@ -327,5 +327,10 @@ body{ margin:0; background:var(--sig-bg); color:var(--sig-ink); font-family:'IBM
   background:linear-gradient(180deg, #ffd766, #ffc233);
 }
 
+
 /* Firefox */
 html{ scrollbar-width:thin; scrollbar-color:#275e63 #05070a; }
+
+.back-term{ background:none; border:1px solid var(--sig-cyan); color:var(--sig-cyan); font-family:inherit;
+  font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; padding:8px 12px; cursor:pointer; }
+.back-term:hover{ background:rgba(95,208,214,.08); box-shadow:0 0 10px rgba(95,208,214,.25); }
