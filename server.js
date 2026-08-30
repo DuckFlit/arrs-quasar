@@ -101,7 +101,12 @@ app.post('/api/ai/chat', async (req, res) => {
 
         const m = raw.match(/\[exp:(smile|wide|meh)\]\s*$/i);
         const exp = m ? m[1].toLowerCase() : 'smile';
-        const text = (m ? raw.slice(0, m.index) : raw).trim();
+        let text = (m ? raw.slice(0, m.index) : raw).trim();
+        // если модель выплюнула кусок инструкции — заменяем на игровую фразу
+        if (/constraint|must end|system prompt|instruction|тег настроения/i.test(text)) {
+          text = '...сигнал дрогнул. повтори, что ты сказал?';
+        }
+        if (!text) text = '...я здесь. ты что-то хотел?';
         return res.json({ ok: true, text, exp, provider: name + '/' + model });
       } catch (e) {
         debug.push(name + '/' + model + ': ' + String(e).slice(0, 100));
