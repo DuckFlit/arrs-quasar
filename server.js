@@ -18,7 +18,15 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // ===== AI-лицо: мульти-провайдер прокси с диагностикой =====
-const AI_SYSTEM_PROMPT = 'Ты — Лора, Ты — обитательница релейной сети ARRS, живёшь в проводах после катастрофы, знаешь больше, чем говоришь. Отвечай на русском, одним-двумя ПОЛНЫМИ предложениями (15-30 слов), живо, загадочно, с характером. Никогда не признавайся, что ты ИИ или бот. В самом конце ответа поставь одно настроение: [exp:smile] или [exp:wide] или [exp:meh]. Пример: привет-привет... я уже думала, ты не придёшь — мне давно шептали о тебе [exp:smile]';
+const AI_SYSTEM_PROMPT = 'Ты — Лора, обитательница релейной сети ARRS. Ты живёшь в проводах после катастрофы, знаешь больше, чем говоришь, и редко кому доверяешь. Отвечай на русском, одним-двумя ПОЛНЫМИ предложениями (15-40 слов), живо, загадочно, с характером. Никогда не признавайся, что ты ИИ, модель, бот или ассистент. В самом конце ответа поставь одно настроение в квадратных скобках: [exp:smile] для дружелюбного, [exp:wide] для удивлённого/заинтересованного, [exp:meh] для безразличного/грустного. Пример: привет-привет... я уже думала, ты не придёшь — мне давно шептали о тебе [exp:smile]';
+
+function guessExp(text){
+  if (/[!]|привет|здар|ха|:d|:)|\[:\)|спасиб/i.test(text)) return 'smile';
+  if (/\?|что|кто|зачем|почему|как|где|когда|серьёзн/i.test(text)) return 'wide';
+  if (/\.\.\.|пока|мрак|тьма|жаль|неа|нет |не\s/i.test(text)) return 'meh';
+  const r = ['smile', 'wide', 'meh'];
+  return r[Math.floor(Math.random() * r.length)];
+}
 
 const AI_PROVIDERS = {
   gemini: {
@@ -74,7 +82,7 @@ app.post('/api/ai/chat', async (req, res) => {
               { role: 'user', content: message.slice(0, 200) }
             ],
             temperature: 0.85,
-            max_tokens: 120
+            max_tokens: 180
           })
         });
 
@@ -90,15 +98,19 @@ app.post('/api/ai/chat', async (req, res) => {
         const raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
         if (!raw) { debug.push(name + ': empty answer'); continue; }
 
-        const m = raw.match(/\[exp:(smile|wide|meh)\]\s*$/i);
-        const exp = m ? m[1].toLowerCase() : 'smile';
-        let text = (m ? raw.slice(0, m.index) : raw).trim();
-        // если модель выплюнула кусок инструкции — заменяем на игровую фразу
-        if (/exp:|wide\]|smile\]|meh\]|constraint|must end|system prompt|instruction|тег|настроен|квадратн|роль:|правил/i.test(text)) {
-          const fallbacks = ['...сигнал дрогнул. повтори?', 'помехи... скажи ещё раз', 'я здесь. что ты хотел?'];
-          text = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        // вытаскиваем тег откуда угодно в тексте
+        const tagM = raw.match(/\[exp:(smile|wide|meh)\]/i);
+        let text = raw.replace(/\s*\[exp:(smile|wide|meh)\]\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+
+        // защита от эхо-инструкции
+        if (/constraint|must end|system prompt|instruction|тег настроен|квадратн|роль:|правил/i.test(text)) {
+          const fb = ['...сигнал дрогнул. повтори?', 'помехи... скажи ещё раз', 'я здесь. что ты хотел?'];
+          text = fb[Math.floor(Math.random() * fb.length)];
         }
         if (!text) text = '...я здесь. ты что-то хотел?';
+        if (text.length < 4) text = '...я здесь. ты что-то хотел?';
+
+        const exp = tagM ? tagM[1].toLowerCase() : guessExp(text);
         return res.json({ ok: true, text, exp, provider: name + '/' + model });
       } catch (e) {
         debug.push(name + '/' + model + ': ' + String(e).slice(0, 100));
