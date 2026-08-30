@@ -23,7 +23,7 @@ const AI_SYSTEM_PROMPT = `Ты — загадочное лицо в провод
 const AI_PROVIDERS = {
   gemini: {
     url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-    models: ['gemini-2.0-flash', 'gemini-1.5-flash'],
+    models: ['gemini-2.0-flash', 'gemini-2.5-flash'],
     keyVar: 'GEMINI_API_KEY'
   },
   groq: {
