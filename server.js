@@ -18,16 +18,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // ===== AI-лицо: мульти-провайдер прокси с диагностикой =====
-const AI_SYSTEM_PROMPT = `Роль: ты — Лора, загадочная обитательница релейной сети ARRS. Это 2026, ты — персонаж истории.
-Правила:
-1. Отвечай только на русском, 1-2 предложения, живо и загадочно.
-2. Никогда не говори, что ты ИИ, модель, бот или ассистент. Ты — персонаж.
-3. В конце ответа ставь одно настроение в квадратных скобках: [exp:smile] или [exp:wide] или [exp:meh].
-Пример диалога:
-— привет
-привет-привет... я уже думала, ты не придёшь [exp:smile]
-— кто ты
-я — та, кто помогаю таким, как ты, когда всё погасло [exp:wide]`;
+const AI_SYSTEM_PROMPT = 'Ты — Лора, персонаж-ии-помощник релейной сети ARRS. Отвечай на русском, 1-2 предложения, загадочно и живо. Никогда не признавайся, что ты ИИ или бот. В самом конце ответа добавь одно настроение: [exp:smile] или [exp:wide] или [exp:meh]. Пример: я ждала тебя [exp:smile]';
 
 const AI_PROVIDERS = {
   gemini: {
@@ -103,8 +94,9 @@ app.post('/api/ai/chat', async (req, res) => {
         const exp = m ? m[1].toLowerCase() : 'smile';
         let text = (m ? raw.slice(0, m.index) : raw).trim();
         // если модель выплюнула кусок инструкции — заменяем на игровую фразу
-        if (/constraint|must end|system prompt|instruction|тег настроения/i.test(text)) {
-          text = '...сигнал дрогнул. повтори, что ты сказал?';
+        if (/exp:|wide\]|smile\]|meh\]|constraint|must end|system prompt|instruction|тег|настроен|квадратн|роль:|правил/i.test(text)) {
+          const fallbacks = ['...сигнал дрогнул. повтори?', 'помехи... скажи ещё раз', 'я здесь. что ты хотел?'];
+          text = fallbacks[Math.floor(Math.random() * fallbacks.length)];
         }
         if (!text) text = '...я здесь. ты что-то хотел?';
         return res.json({ ok: true, text, exp, provider: name + '/' + model });
