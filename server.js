@@ -17,18 +17,30 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-// ===== AI-лицо: мульти-провайдер прокси =====
+// ===== AI-лицо: мульти-провайдер прокси с диагностикой =====
 const AI_SYSTEM_PROMPT = `Ты — загадочное лицо в проводе, обитательница релейной сети ARRS. Отвечай КОРОТКО (1-2 предложения), на русском, в духе пост-апокалипсиса и тайны. Иногда кокетничай, иногда отшучивайся, иногда намёками. Не раскрывай, кто ты. Не пиши от лица ассистента или ИИ — ты ПЕРСОНАЖ. В самом конце ответа ОБЯЗАТЕЛЬНО добавь тег настроения в квадратных скобках: [exp:smile] для дружелюбного, [exp:wide] для удивлённого/шокированного, [exp:meh] для безразличного/грустного. Только один тег, в самом конце строки.`;
 
 const AI_PROVIDERS = {
-  // бесплатно, без ключа, работает сразу
-  pollinations: { url: 'https://text.pollinations.ai/openai', model: 'openai', keyVar: null },
-  // бесплатно, ключ без карты: console.groq.com
-  groq:         { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.1-8b-instant', keyVar: 'GROQ_API_KEY' },
-  // бесплатно, ключ без карты: aistudio.google.com
-  gemini:       { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash', keyVar: 'GEMINI_API_KEY' },
-  // платный (центы), если пополнить
-  deepseek:     { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', keyVar: 'DEEPSEEK_API_KEY' },
+  gemini: {
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    models: ['gemini-2.0-flash', 'gemini-1.5-flash'],
+    keyVar: 'GEMINI_API_KEY'
+  },
+  groq: {
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+    keyVar: 'GROQ_API_KEY'
+  },
+  deepseek: {
+    url: 'https://api.deepseek.com/chat/completions',
+    models: ['deepseek-chat'],
+    keyVar: 'DEEPSEEK_API_KEY'
+  },
+  pollinations: {
+    url: 'https://text.pollinations.ai/openai',
+    models: ['openai'],
+    keyVar: null
+  }
 };
 
 app.post('/api/ai/chat', async (req, res) => {
@@ -37,44 +49,59 @@ app.post('/api/ai/chat', async (req, res) => {
     return res.status(400).json({ error: 'bad request' });
   }
 
-  const wanted = String(process.env.AI_PROVIDER || 'pollinations').toLowerCase();
-  const order = [wanted, 'pollinations'].filter((v, i, a) => a.indexOf(v) === i);
+  const wanted = String(process.env.AI_PROVIDER || 'gemini').toLowerCase();
+  const order = [wanted, 'gemini', 'groq', 'pollinations'].filter((v, i, a) => a.indexOf(v) === i);
+  const debug = [];
 
   for (const name of order) {
     const p = AI_PROVIDERS[name];
     if (!p) continue;
     const key = p.keyVar ? (process.env[p.keyVar] || '') : '';
-    if (p.keyVar && !key) continue; // нет ключа — пропускаем провайдера
+    if (p.keyVar && !key) { debug.push(name + ': no key in env'); continue; }
 
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (key) headers.Authorization = 'Bearer ' + key;
+    for (const model of p.models) {
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (key) headers.Authorization = 'Bearer ' + key;
 
-      const apiRes = await fetch(p.url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: p.model,
-          messages: [
-            { role: 'system', content: AI_SYSTEM_PROMPT },
-            { role: 'user', content: message.slice(0, 200) }
-          ],
-          temperature: 0.85,
-          max_tokens: 120
-        })
-      });
-      if (!apiRes.ok) continue;
-      const data = await apiRes.json();
-      const raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      if (!raw) continue;
-      const m = raw.match(/\[exp:(smile|wide|meh)\]\s*$/i);
-      const exp = m ? m[1].toLowerCase() : 'smile';
-      const text = (m ? raw.slice(0, m.index) : raw).trim();
-      return res.json({ ok: true, text, exp, provider: name });
-    } catch (e) { /* пробуем следующего */ }
+        const apiRes = await fetch(p.url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: AI_SYSTEM_PROMPT },
+              { role: 'user', content: message.slice(0, 200) }
+            ],
+            temperature: 0.85,
+            max_tokens: 120
+          })
+        });
+
+        const bodyText = await apiRes.text();
+        if (!apiRes.ok) {
+          debug.push(name + '/' + model + ': HTTP ' + apiRes.status + ' ' + bodyText.slice(0, 150));
+          console.error('[ai]', name, model, apiRes.status, bodyText.slice(0, 300));
+          continue;
+        }
+
+        let data = {};
+        try { data = JSON.parse(bodyText); } catch (e) { debug.push(name + ': bad json'); continue; }
+        const raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        if (!raw) { debug.push(name + ': empty answer'); continue; }
+
+        const m = raw.match(/\[exp:(smile|wide|meh)\]\s*$/i);
+        const exp = m ? m[1].toLowerCase() : 'smile';
+        const text = (m ? raw.slice(0, m.index) : raw).trim();
+        return res.json({ ok: true, text, exp, provider: name + '/' + model });
+      } catch (e) {
+        debug.push(name + '/' + model + ': ' + String(e).slice(0, 100));
+        console.error('[ai]', name, model, String(e));
+      }
+    }
   }
 
-  res.status(503).json({ error: 'all providers failed' });
+  res.status(503).json({ error: 'all providers failed', debug });
 });
 
 // ---- API ----
