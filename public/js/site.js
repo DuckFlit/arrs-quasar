@@ -7,7 +7,7 @@ const prefixEl = document.getElementById('prompt-prefix');
 const panelEl  = document.getElementById('term-panel');
 const wrapEl   = document.getElementById('term-wrap');
 
-let mode = 'boot';       // boot -> cmd -> user -> pass -> decrypt
+let mode = 'boot';
 let pendingUser = '';
 let attempts = 0;
 let locked = false;
@@ -49,13 +49,12 @@ async function api(method, url, body){
     }
     if(data.subtitle) document.getElementById('site-subtitle').textContent = data.subtitle;
     if(data.nodeTag) document.getElementById('site-node').textContent = data.nodeTag;
-    // цветовая гамма, заданная в админке (Настройки сайта)
     if(data.accentColor) document.documentElement.style.setProperty('--sig-cyan', data.accentColor);
     if(data.dossierColor) document.documentElement.style.setProperty('--phosphor', data.dossierColor);
   }
 })();
 
-/* ---------------- keystroke click (tiny, lazy audio ctx) ---------------- */
+/* ---------------- keystroke click ---------------- */
 let kctx = null;
 function keyClick(){
   try{
@@ -97,7 +96,7 @@ function beepSound(){
   }catch(e){}
 }
 
-/* ---------------- default (built-in) easter egg: laughing skull ---------------- */
+/* ---------------- default easter egg ---------------- */
 const DEFAULT_SKULL_A =
 "   .-\"\"\"\"\"-.   \n  /  o   o  \\  \n |     ^     | \n |   \\___/   | \n  \\  '---'  /  \n   '.-----.'   \n    _|   |_    \n   |_|   |_|   ";
 const DEFAULT_SKULL_B =
@@ -226,7 +225,6 @@ async function handleCommand(raw){
     return;
   }
 
-  // не встроенная команда — спросим бэкенд: может, это кастомная команда / код цепочки / пасхалка
   const { data } = await api('POST', '/api/public/command', { profileId: currentProfile ? currentProfile.id : null, input: val });
   if(data && data.ok){
     if(data.kind === 'command'){
@@ -292,8 +290,6 @@ async function handlePass(raw){
   if(data && data.ok){
     currentProfile = data.profile;
     if(currentProfile.showDossier === false){
-      // "тихий" логин — просто ключ для разблокировки команд/цепочек/пасхалок,
-      // без визуального досье
       printLine('AUTHENTICATION OK.', 'out-ok');
       printLine('session bound. additional commands may now respond differently.', 'out-dim');
       attempts = 0;
@@ -344,7 +340,7 @@ function lockOut(){
   }, 1000);
 }
 
-/* ---------------- decrypt animation -> dossier reveal ---------------- */
+/* ---------------- decrypt animation ---------------- */
 function runDecrypt(){
   const bar = printLine('', 'prog-line');
   let pct = 0;
@@ -385,11 +381,10 @@ function backToTerminal(){
   inputEl.focus();
 }
 
-/* ---------------- dossier rendering (fully data-driven) ---------------- */
+/* ---------------- dossier rendering ---------------- */
 function renderDossier(p){
   const el = document.getElementById('dossier');
 
-  // цветовая гамма конкретного профиля (если задана) — переопределяет фосфор/зелёный только внутри досье
   if(p.accentColor) el.style.setProperty('--phosphor', p.accentColor);
   if(p.secondaryColor) el.style.setProperty('--green', p.secondaryColor);
 
@@ -527,6 +522,7 @@ inputEl.addEventListener('keydown', (e) => {
 document.getElementById('term-panel').addEventListener('click', () => inputEl.focus());
 
 setTimeout(runBoot, 300);
+
 // ============================================================
 // MELTDOWN: live-тревога, запускаемая из админки
 // ============================================================
@@ -714,4 +710,6 @@ setTimeout(runBoot, 300);
     setTimeout(() => flash.classList.add('go'), 20500);
     setTimeout(() => window.location.reload(), 21100);
   }
+})();
+
 })();
