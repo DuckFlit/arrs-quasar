@@ -368,6 +368,18 @@ const SCHEMAS = {
       { key:'published', label:'Активна', type:'checkbox', default:true }
     ]
   }
+  ,wall: {
+    title: 'Стена перехватов', apiBase: '/api/admin/wall',
+    columns: [
+      { key:'nick', label:'Позывной' },
+      { key:'text', label:'Сообщение' },
+      { key:'at', label:'Время', render: v => new Date(v).toLocaleString('ru-RU') },
+    ],
+    fields: [
+      { key:'text', label:'Сообщение', type:'text', required:true },
+      { key:'nick', label:'Позывной', type:'text' },
+    ]
+  }
 };
 
 /* ============================================================
