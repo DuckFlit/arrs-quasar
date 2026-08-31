@@ -144,6 +144,15 @@ app.post('/api/admin/meltdown/trigger', async (req, res) => {
   res.json({ ok: true, id: db.settings.meltdown.id });
 });
 
+app.post('/api/admin/meltdown/reset', async (req, res) => {
+  const db = readDb();
+  if (db.settings && db.settings.meltdown) {
+    db.settings.meltdown.active = false;
+    await writeDb(db);
+  }
+  res.json({ ok: true });
+});
+
 // ---- API ----
 app.use('/api/admin/auth', adminAuth);
 app.use('/api/admin/profiles', adminProfiles);
