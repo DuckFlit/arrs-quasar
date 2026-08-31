@@ -952,6 +952,7 @@ async function renderSettingsTab(){
         renderSettingsTab();
       } catch(e){
         toast('Ошибка импорта: ' + e.message, 'error');
+      }
     });
   });
 }
