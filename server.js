@@ -247,6 +247,57 @@ app.get('/api/admin/analytics', async (req, res) => {
   });
 });
 
+// ===== СТЕНА ПЕРЕХВАТОВ =====
+function adminOk(req){
+  const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
+  const cookies = req.cookies || {};
+  const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
+  if(token){ try{ require('jsonwebtoken').verify(token, secret); return true; }catch(e){} }
+  return !!(req.headers['x-admin-key'] && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD);
+}
+
+const wallLast = new Map();
+const WALL_RATE = 60000; // 1 сообщение в минуту на визитора
+
+app.get('/api/public/wall', (req, res) => {
+  const db = readDb();
+  res.json((db.wall || []).slice(-50));
+});
+
+app.post('/api/public/wall', async (req, res) => {
+  const vid = (req.cookies && req.cookies.arrs_vid) || 'anon';
+  const now = Date.now();
+  const last = wallLast.get(vid) || 0;
+  if(now - last < WALL_RATE){
+    return res.status(429).json({ error: 'too fast', wait: Math.ceil((WALL_RATE - (now - last)) / 1000) });
+  }
+  const { nick, text } = req.body || {};
+  const cleanText = String(text || '').trim().slice(0, 140);
+  const cleanNick = String(nick || '').trim().slice(0, 24) || 'аноним';
+  if(!cleanText) return res.status(400).json({ error: 'empty' });
+  wallLast.set(vid, now);
+  const db = readDb();
+  db.wall = db.wall || [];
+  db.wall.push({ id: 'w' + now + Math.floor(Math.random() * 999), nick: cleanNick, text: cleanText, at: now });
+  if(db.wall.length > 200) db.wall = db.wall.slice(-200);
+  await writeDb(db);
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/wall', (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  res.json(db.wall || []);
+});
+
+app.delete('/api/admin/wall/:id', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  db.wall = (db.wall || []).filter(m => m.id !== req.params.id);
+  await writeDb(db);
+  res.json({ ok: true });
+});
+
 // ---- статика: публичный терминал-сайт + панель администратора ----
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
