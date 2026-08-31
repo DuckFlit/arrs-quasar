@@ -535,9 +535,12 @@ setTimeout(runBoot, 300);
       const r = await fetch('/api/public/site');
       const s = await r.json();
       const md = s && s.meltdown;
-      if(md && md.active && md.id !== lastMdId && (Date.now() - md.startedAt) < 90000){
+      // проверяем: активен И не показывался в этой сессии
+      const shown = sessionStorage.getItem('md_shown_' + (md && md.id));
+      if(md && md.active && !shown && md.id !== lastMdId && (Date.now() - md.startedAt) < 90000){
         lastMdId = md.id;
-        startMeltdown();
+        sessionStorage.setItem('md_shown_' + md.id, '1');
+        startMeltdown(md.id);
       }
     }catch(e){}
   }
@@ -590,7 +593,7 @@ setTimeout(runBoot, 300);
     '[!!] THEY ARE IN THE WIRE',
   ];
 
-  function startMeltdown(){
+  function startMeltdown(mdId){
     running = true;
     const st = document.createElement('style');
     st.textContent = `
@@ -603,7 +606,9 @@ setTimeout(runBoot, 300);
       @keyframes md-flash{0%,100%{opacity:1}50%{opacity:.55}}
       #md-ov .md-sub{position:absolute;top:calc(8% + 74px);left:0;right:0;text-align:center;font-size:12px;letter-spacing:.4em;color:#ffb0b0;text-transform:uppercase;}
       #md-ov .md-dump{position:absolute;top:26%;left:6%;right:6%;height:34%;overflow:hidden;font-size:12px;line-height:1.7;text-shadow:0 0 6px rgba(255,59,48,.6);}
-      #md-ov .md-report{position:absolute;top:63%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.6);padding:14px 18px;display:none;}
+      #md-ov .md-skull{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(40vw,280px);opacity:0;transition:opacity .8s;pointer-events:none;filter:drop-shadow(0 0 30px rgba(255,59,48,.6));}
+      #md-ov .md-skull.show{opacity:1;}
+      #md-ov .md-report{position:absolute;top:70%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.6);padding:14px 18px;display:none;}
       #md-ov .md-report h4{margin:0 0 10px;font-size:11px;letter-spacing:.3em;color:#ffb0b0;}
       #md-ov .md-rep-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;}
       #md-ov .md-rep-row b{color:#fff;}
@@ -627,6 +632,7 @@ setTimeout(runBoot, 300);
       <div class="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
       <div class="md-sub">trace: cia // directorate-9 :: all nodes burned</div>
       <div class="md-dump" id="md-dump"></div>
+      <img class="md-skull" id="md-skull" src="https://media.tenor.com/8ZjZjZjZjZjZ/ultrakill-skull.gif" alt="">
       <div class="md-report" id="md-report">
         <h4>// ОТЧЁТ ОБ ИНЦИДЕНТЕ //</h4>
         <div class="md-rep-row"><span>узлов потеряно</span><b id="md-r1">0/12</b></div>
@@ -660,8 +666,14 @@ setTimeout(runBoot, 300);
       di++;
     }, 140);
 
-    setTimeout(() => ov.classList.add('shake'), 3000);
+    // 0-3с: читаем заголовок БЕЗ тряски
+    // 3с: появляется череп
+    setTimeout(() => document.getElementById('md-skull').classList.add('show'), 3000);
+    
+    // 6с: начинается тряска
+    setTimeout(() => ov.classList.add('shake'), 6000);
 
+    // 8с: отчёт
     setTimeout(() => {
       document.getElementById('md-report').style.display = 'block';
       const t0 = performance.now();
@@ -672,8 +684,9 @@ setTimeout(runBoot, 300);
         document.getElementById('md-r3').textContent = Math.floor(100 - p * 100) + '%';
         if(p < 1) requestAnimationFrame(rep);
       })();
-    }, 5000);
+    }, 8000);
 
+    // 15с: перезапуск
     setTimeout(() => {
       clearInterval(sirenIv); clearInterval(dumpIv);
       ov.style.display = 'none';
@@ -705,10 +718,15 @@ setTimeout(runBoot, 300);
         document.getElementById('md-rb-count').textContent = 'reboot in ' + Math.max(0, Math.ceil(6 - p * 6)) + '...';
         if(p < 1) requestAnimationFrame(barTick);
       })();
-    }, 13000);
+    }, 15000);
 
-    setTimeout(() => flash.classList.add('go'), 20500);
-    setTimeout(() => window.location.reload(), 21100);
+    // 22с: вспышка + сброс флага + reload
+    setTimeout(async () => {
+      flash.classList.add('go');
+      // сбрасываем флаг в базе, чтобы не зацикливалось
+      try{ await fetch('/api/admin/meltdown/reset', { method:'POST', credentials:'include' }); }catch(e){}
+      setTimeout(() => window.location.reload(), 600);
+    }, 22000);
   }
 })();
 
