@@ -194,6 +194,12 @@ async function handleCommand(raw){
     printLine('  clear    — clear the screen', 'out-dim');
     printLine('  ...additional commands may exist. this terminal rewards curiosity.', 'out-dim');
     printLine('  dossier  — reopen your personnel file', 'out-dim');
+    printLine('  scan     — sweep the radio band', 'out-dim');
+    printLine('  scan N   — tune to frequency (try 14.4)', 'out-dim');
+    printLine('  morse    — morse reference table', 'out-dim');
+    printLine('  wall     — read the wall of intercepts', 'out-dim');
+    printLine('  tx text  — broadcast to ALL terminals live', 'out-dim');
+    printLine('  nick N   — set your callsign for the wall', 'out-dim');
     return;
   }
   if(cmd === 'login'){
@@ -222,6 +228,39 @@ async function handleCommand(raw){
     } else {
       printLine('no personnel file bound to this session.', 'out-dim');
     }
+    return;
+  }
+
+  if(cmd === 'morse'){
+    printLine('morse reference:', 'out-dim');
+    printLine('  A .-  B -...  C -.-.  D -..  E .  F ..-.  G --.  H ....', 'out-dim');
+    printLine('  I ..  J .---  K -.-  L .-..  M --  N -.  O ---  P .--.', 'out-dim');
+    printLine('  Q --.-  R .-.  S ...  T -  U ..-  V ...-  W .--  X -..-', 'out-dim');
+    printLine('  Y -.--  Z --..', 'out-dim');
+    printLine('  0 ----- 1 .---- 2 ..--- 3 ...-- 4 ....- 5 ..... 6 -.... 7 --... 8 ---.. 9 ----.', 'out-dim');
+    return;
+  }
+  if(cmd === 'scan'){
+    runScanSweep();
+    return;
+  }
+  if(cmd.startsWith('scan ')){
+    const fq = parseFloat(val.replace('scan', ''));
+    if(isNaN(fq)){ printLine('usage: scan <freq> — e.g. scan 14.4', 'out-err'); return; }
+    tuneFreq(fq);
+    return;
+  }
+  if(cmd === 'wall'){
+    printWall();
+    return;
+  }
+  if(cmd.startsWith('tx ') || cmd.startsWith('say ')){
+    wallSend(val.replace(/^(tx|say)\s+/, ''));
+    return;
+  }
+  if(cmd.startsWith('nick ')){
+    const n = val.slice(5).trim().slice(0, 24);
+    if(n){ localStorage.setItem('arrs_nick', n); printLine(`callsign accepted: ${escapeHtml(n)}`, 'out-ok'); }
     return;
   }
 
@@ -505,6 +544,156 @@ function wireAudio(){
   });
 }
 
+/* ---------------- radio scanner ---------------- */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const MORSE = {A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'---..',9:'----.'};
+function toMorse(str){ return str.toUpperCase().split('').map(ch => ch === ' ' ? '/' : (MORSE[ch] || '')).join(' '); }
+
+const RADIO = [
+  { f: 3.7,  type: 'text',  payload: '...повторяю... колонна вышла из-под контроля... не возвращайтесь в город...' },
+  { f: 7.83, type: 'morse', payload: 'SOS',  note: 'кто-то всё ещё зовёт на помощь' },
+  { f: 11.2, type: 'text',  payload: '[перехват CIA] ...списки класса B утверждены... зачистка узла 14-4 отложена...' },
+  { f: 14.4, type: 'morse', payload: 'WEWLAD', special: true },
+  { f: 21.5, type: 'voice', payload: 'о̸н̸и̶ ̸в̶ ̸п̸р̸о̸в̸о̸д̸а̸х̸...̸ ̸не ̸в̸е̸рь ̸з̸е̸р̸к̸а̸л̸а̸м̸' },
+];
+
+function staticNoise(ms){
+  try{
+    if(!kctx) kctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = kctx;
+    const len = Math.floor(ctx.sampleRate * ms / 1000);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.4;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const g = ctx.createGain(); g.gain.value = 0.03;
+    src.connect(g).connect(ctx.destination); src.start();
+  }catch(e){}
+}
+
+async function playMorse(str){
+  try{
+    if(!kctx) kctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = kctx;
+    let t = ctx.currentTime + 0.05;
+    const dot = 0.08;
+    for(const ch of str.toUpperCase()){
+      const code = MORSE[ch];
+      if(!code){ if(ch === ' ') t += 0.2; continue; }
+      for(const s of code){
+        const dur = s === '.' ? dot : dot * 3;
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = 640;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g).connect(ctx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+        t += dur + dot;
+      }
+      t += dot * 2;
+    }
+  }catch(e){}
+}
+
+function runScanSweep(){
+  printLine('scanning 0.0 — 30.0 MHz...', 'out-dim');
+  staticNoise(400);
+  let f = 0;
+  const iv = setInterval(() => {
+    f += 0.4 + Math.random() * 0.6;
+    if(f >= 30){
+      clearInterval(iv);
+      printLine('scan complete. active frequencies detected:', 'out-cyan');
+      RADIO.forEach(r => printLine(`  ${r.f.toFixed(1).padStart(5, ' ')} MHz :: signal`, 'out-dim'));
+      printLine('tune in: <b>scan &lt;freq&gt;</b> · decode help: <b>morse</b>', 'out-dim');
+      return;
+    }
+    const near = RADIO.find(r => Math.abs(r.f - f) < 0.2);
+    printLine(`  ${f.toFixed(1)} MHz ... ${near ? '<b class="out-ok">SIGNAL</b>' : 'noise'}`, 'out-dim');
+    if(near) keyClick();
+  }, 80);
+}
+
+async function tuneFreq(freq){
+  printLine(`tuning ${freq.toFixed(1)} MHz...`, 'out-dim');
+  staticNoise(700);
+  await sleep(700);
+  const r = RADIO.find(x => Math.abs(x.f - freq) < 0.05);
+  if(!r){
+    staticNoise(1200);
+    printLine('  ...static... nothing on this frequency.', 'out-dim');
+    return;
+  }
+  if(r.type === 'morse'){
+    printLine('  beacon transmitting:', 'out-cyan');
+    printLine('  ' + toMorse(r.payload), 'out-ok');
+    await playMorse(r.payload);
+    if(r.special){
+      printLine('  → шесть слов. фонетика НАТО. первые буквы — здесь.', 'out-cyan');
+      jolt();
+    } else {
+      printLine(`  (${r.note || 'decode: command morse'})`, 'out-dim');
+    }
+  }
+  if(r.type === 'text'){
+    staticNoise(500);
+    printLine('  [intercept] ' + r.payload, 'out-ok');
+  }
+  if(r.type === 'voice'){
+    staticNoise(2200);
+    printLine('  [voice, distorted] ' + r.payload, 'out-err');
+    jolt();
+  }
+}
+
+/* ---------------- wall of intercepts ---------------- */
+async function printWall(){
+  const { data } = await api('GET', '/api/public/wall');
+  if(!data || !data.length){
+    printLine('эфир пока пуст. будь первым: <b>tx &lt;текст&gt;</b>', 'out-dim');
+    return;
+  }
+  printLine('// wall of intercepts :: latest:', 'out-cyan');
+  data.slice(-8).forEach(m => {
+    printLine(`  [${escapeHtml(m.nick)}] ${escapeHtml(m.text)}`, 'out-dim');
+  });
+  printLine('send: <b>tx &lt;text&gt;</b> · callsign: <b>nick &lt;name&gt;</b>', 'out-dim');
+}
+
+async function wallSend(text){
+  if(!text){ printLine('usage: tx <text>', 'out-err'); return; }
+  const nick = localStorage.getItem('arrs_nick') || (currentProfile ? (currentProfile.callsign || currentProfile.displayName) : 'аноним');
+  const { ok, status, data } = await api('POST', '/api/public/wall', { nick, text });
+  if(ok){
+    printLine(`→ [${escapeHtml(nick)}] передано в эфир.`, 'out-ok');
+    beepSound();
+  } else if(status === 429){
+    printLine(`антенна остывает... подожди ${data && data.wait ? data.wait : 60} сек.`, 'out-err');
+  } else {
+    printLine('передача не удалась.', 'out-err');
+  }
+}
+
+let wallLastAt = 0, wallInit = false;
+async function wallPoll(){
+  const { data } = await api('GET', '/api/public/wall');
+  if(!data) return;
+  if(!wallInit){
+    wallInit = true;
+    wallLastAt = data.length ? data[data.length - 1].at : 0;
+    return;
+  }
+  data.filter(m => m.at > wallLastAt).forEach(m => {
+    wallLastAt = m.at;
+    if(locked) return;
+    printLine(`» [перехват] ${escapeHtml(m.nick)}: ${escapeHtml(m.text)}`, 'out-cyan');
+    beepSound();
+  });
+}
+setInterval(wallPoll, 8000);
+setTimeout(wallPoll, 1500);
+  
 /* ---------------- input wiring ---------------- */
 inputEl.addEventListener('keydown', (e) => {
   if(locked){ e.preventDefault(); return; }
