@@ -250,9 +250,12 @@ app.get('/api/admin/analytics', async (req, res) => {
 // ===== СТЕНА ПЕРЕХВАТОВ =====
 function adminOk(req){
   const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
+  const jwtLib = require('jsonwebtoken');
   const cookies = req.cookies || {};
-  const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
-  if(token){ try{ require('jsonwebtoken').verify(token, secret); return true; }catch(e){} }
+  // пробуем верифицировать каждую cookie — какая является JWT-сессией, та и пройдёт
+  for(const name of Object.keys(cookies)){
+    try{ jwtLib.verify(cookies[name], secret); return true; }catch(e){}
+  }
   return !!(req.headers['x-admin-key'] && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD);
 }
 
