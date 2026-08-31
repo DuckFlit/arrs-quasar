@@ -678,7 +678,6 @@ setTimeout(runBoot, 300);
       })();
     }, 5000);
 
-    // ===== ПЕРЕЗАПУСК =====
     setTimeout(() => {
       clearInterval(sirenIv); clearInterval(dumpIv);
       ov.style.display = 'none';
