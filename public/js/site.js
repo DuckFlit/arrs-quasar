@@ -623,9 +623,6 @@ setTimeout(runBoot, 300);
       #md-ov .md-skull{position:absolute;top:26%;right:8%;width:min(34vw,300px);opacity:0;transition:opacity 1s;pointer-events:none;filter:drop-shadow(0 0 40px rgba(255,59,48,.7));}
       #md-ov .md-skull.show{opacity:1;animation:md-skull 2s ease-in-out infinite;}
       @keyframes md-skull{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-      #md-ov .md-glitchbars{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
-      #md-ov .md-glitchbars i{position:absolute;left:0;right:0;height:6px;background:rgba(255,59,48,.5);mix-blend-mode:screen;animation:md-gbar .5s steps(3) infinite;}
-      @keyframes md-gbar{0%{transform:translateX(0)}50%{transform:translateX(-30px)}100%{transform:translateX(20px)}}
       #md-matrix{position:absolute;inset:0;opacity:0;transition:opacity 1s;pointer-events:none;}
       #md-matrix.show{opacity:.5;}
       #md-ov .md-report{position:absolute;top:68%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.7);padding:14px 18px;display:none;box-shadow:0 0 40px rgba(255,59,48,.4);}
@@ -653,7 +650,6 @@ setTimeout(runBoot, 300);
       <div class="md-stripes"></div>
       <div class="md-stripes bot"></div>
       <canvas id="md-matrix"></canvas>
-      <div class="md-glitchbars" id="md-gbars"></div>
       <div class="md-title" id="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
       <div class="md-sub">trace: cia // directorate-9 :: all nodes burned</div>
       <div class="md-dump" id="md-dump"></div>
@@ -701,15 +697,6 @@ setTimeout(runBoot, 300);
       }
       setTimeout(() => requestAnimationFrame(mdraw), 70);
     })();
-
-    /* ---------- глитч-полосы ---------- */
-    const gbars = document.getElementById('md-gbars');
-    for(let i=0;i<6;i++){
-      const b = document.createElement('i');
-      b.style.top = (10 + Math.random()*80) + '%';
-      b.style.animationDelay = (Math.random()*.5) + 's';
-      gbars.appendChild(b);
-    }
 
     /* ---------- глитч заголовка ---------- */
     const titleEl = document.getElementById('md-title');
