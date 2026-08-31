@@ -527,4 +527,192 @@ inputEl.addEventListener('keydown', (e) => {
 document.getElementById('term-panel').addEventListener('click', () => inputEl.focus());
 
 setTimeout(runBoot, 300);
+// ============================================================
+// MELTDOWN: live-тревога, запускаемая из админки
+// ============================================================
+(function(){
+  let lastMdId = null, running = false;
+
+  async function pollMeltdown(){
+    if(running) return;
+    try{
+      const r = await fetch('/api/public/site');
+      const s = await r.json();
+      const md = s && s.meltdown;
+      if(md && md.active && md.id !== lastMdId && (Date.now() - md.startedAt) < 90000){
+        lastMdId = md.id;
+        startMeltdown();
+      }
+    }catch(e){}
+  }
+  setInterval(pollMeltdown, 2000);
+  setTimeout(pollMeltdown, 800);
+
+  let mctx = null;
+  function mAudio(){ if(!mctx){ try{ mctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return mctx; }
+  function siren(){
+    const ctx = mAudio(); if(!ctx) return;
+    try{
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(420, t);
+      o.frequency.linearRampToValueAtTime(860, t + .55);
+      o.frequency.linearRampToValueAtTime(420, t + 1.1);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(.06, t + .06);
+      g.gain.exponentialRampToValueAtTime(.0001, t + 1.15);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1.2);
+    }catch(e){}
+  }
+  function blip(f){
+    const ctx = mAudio(); if(!ctx) return;
+    try{
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square'; o.frequency.value = f || 980;
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(.04, t + .005);
+      g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .08);
+    }catch(e){}
+  }
+
+  const DUMP = [
+    '[!!] kernel panic :: node 14-4 KORD',
+    '[!!] external trace injected :: origin CIA/DIR-9',
+    '[!!] firewall bypassed FROM INSIDE',
+    '[>>] dumping profile database...',
+    '[>>] exfiltrating relay keys...',
+    '[!!] integrity check FAILED (0x2F3A)',
+    '[!!] ARRS WAS COMPROMISED BY CIA',
+    '[>>] overwriting logs... denied',
+    '[!!] unauthorized root session #4471',
+    '[!!] kill-switch triggered by operator',
+    '[>>] broadcasting false telemetry...',
+    '[!!] node 07 silent // node 09 silent',
+    '[!!] THEY ARE IN THE WIRE',
+  ];
+
+  function startMeltdown(){
+    running = true;
+    const st = document.createElement('style');
+    st.textContent = `
+      #md-ov{position:fixed;inset:0;z-index:99990;background:#140202;color:#ff4d4d;font-family:'IBM Plex Mono',monospace;overflow:hidden;}
+      #md-ov .md-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 1px,transparent 1px 3px);pointer-events:none;}
+      #md-ov .md-stripes{position:absolute;top:0;left:0;right:0;height:14px;background:repeating-linear-gradient(45deg,#ff3b30 0 16px,#000 16px 32px);animation:md-move 1s linear infinite;}
+      #md-ov .md-stripes.bot{top:auto;bottom:0;animation-direction:reverse;}
+      @keyframes md-move{to{background-position:45px 0;}}
+      #md-ov .md-title{position:absolute;top:8%;left:0;right:0;text-align:center;font-family:'Black Ops One',cursive;font-size:clamp(26px,6vw,58px);color:#ff3b30;text-shadow:0 0 30px rgba(255,59,48,.8),3px 0 #5fd0d6,-3px 0 #ff5fae;animation:md-flash .5s steps(2) infinite;}
+      @keyframes md-flash{0%,100%{opacity:1}50%{opacity:.55}}
+      #md-ov .md-sub{position:absolute;top:calc(8% + 74px);left:0;right:0;text-align:center;font-size:12px;letter-spacing:.4em;color:#ffb0b0;text-transform:uppercase;}
+      #md-ov .md-dump{position:absolute;top:26%;left:6%;right:6%;height:34%;overflow:hidden;font-size:12px;line-height:1.7;text-shadow:0 0 6px rgba(255,59,48,.6);}
+      #md-ov .md-report{position:absolute;top:63%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.6);padding:14px 18px;display:none;}
+      #md-ov .md-report h4{margin:0 0 10px;font-size:11px;letter-spacing:.3em;color:#ffb0b0;}
+      #md-ov .md-rep-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;}
+      #md-ov .md-rep-row b{color:#fff;}
+      #md-ov.shake{animation:md-shake .18s linear infinite;}
+      @keyframes md-shake{0%{transform:translate(0)}25%{transform:translate(-8px,5px)}50%{transform:translate(7px,-6px)}75%{transform:translate(-5px,-4px)}100%{transform:translate(0)}}
+      #md-reboot{position:fixed;inset:0;z-index:99991;background:#000;color:#7ea87a;font-family:'IBM Plex Mono',monospace;display:none;padding:10vh 8vw;font-size:13px;line-height:1.9;}
+      #md-reboot .md-bar{width:min(80vw,480px);height:10px;border:1px solid #7ea87a;margin:18px 0;position:relative;}
+      #md-reboot .md-bar i{position:absolute;inset:1px;background:#7ea87a;width:0;box-shadow:0 0 12px rgba(126,168,122,.8);}
+      #md-flash{position:fixed;inset:0;z-index:99992;background:#eafcff;opacity:0;pointer-events:none;}
+      #md-flash.go{animation:md-flashout .6s ease forwards;}
+      @keyframes md-flashout{0%{opacity:0}30%{opacity:1}100%{opacity:1}}
+    `;
+    document.head.appendChild(st);
+
+    const ov = document.createElement('div');
+    ov.id = 'md-ov';
+    ov.innerHTML = `
+      <div class="md-scan"></div>
+      <div class="md-stripes"></div>
+      <div class="md-stripes bot"></div>
+      <div class="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
+      <div class="md-sub">trace: cia // directorate-9 :: all nodes burned</div>
+      <div class="md-dump" id="md-dump"></div>
+      <div class="md-report" id="md-report">
+        <h4>// ОТЧЁТ ОБ ИНЦИДЕНТЕ //</h4>
+        <div class="md-rep-row"><span>узлов потеряно</span><b id="md-r1">0/12</b></div>
+        <div class="md-rep-row"><span>профилей раскрыто</span><b id="md-r2">0</b></div>
+        <div class="md-rep-row"><span>целостность сети</span><b id="md-r3">100%</b></div>
+        <div class="md-rep-row"><span>источник атаки</span><b>CIA // ВНУТРЕННИЙ СЛИВ</b></div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+
+    const flash = document.createElement('div');
+    flash.id = 'md-flash';
+    document.body.appendChild(flash);
+
+    const reboot = document.createElement('div');
+    reboot.id = 'md-reboot';
+    reboot.innerHTML = '<div id="md-rb-lines"></div><div class="md-bar"><i id="md-rb-bar"></i></div><div id="md-rb-count"></div>';
+    document.body.appendChild(reboot);
+
+    siren();
+    const sirenIv = setInterval(siren, 1300);
+
+    const dump = document.getElementById('md-dump');
+    let di = 0;
+    const dumpIv = setInterval(() => {
+      const line = document.createElement('div');
+      line.textContent = '> ' + DUMP[di % DUMP.length];
+      dump.appendChild(line);
+      while(dump.children.length > 14) dump.removeChild(dump.firstChild);
+      blip(700 + Math.random() * 500);
+      di++;
+    }, 140);
+
+    setTimeout(() => ov.classList.add('shake'), 3000);
+
+    setTimeout(() => {
+      document.getElementById('md-report').style.display = 'block';
+      const t0 = performance.now();
+      (function rep(now){
+        const p = Math.min(1, ((now || performance.now()) - t0) / 5000);
+        document.getElementById('md-r1').textContent = Math.floor(p * 12) + '/12';
+        document.getElementById('md-r2').textContent = Math.floor(p * 247);
+        document.getElementById('md-r3').textContent = Math.floor(100 - p * 100) + '%';
+        if(p < 1) requestAnimationFrame(rep);
+      })();
+    }, 5000);
+
+    // ===== ПЕРЕЗАПУСК =====
+    setTimeout(() => {
+      clearInterval(sirenIv); clearInterval(dumpIv);
+      ov.style.display = 'none';
+      reboot.style.display = 'block';
+      const lines = [
+        'emergency kill-switch accepted.',
+        'purging cia traces from relay memory... OK',
+        'burning compromised keys... OK',
+        'restoring nodes: 12/12... OK',
+        'rebuilding trust chain... OK',
+        'wiping incident from public logs... OK',
+        'ARRS will remember this.',
+        'reboot sequence engaged.'
+      ];
+      const box = document.getElementById('md-rb-lines');
+      lines.forEach((l, i) => {
+        setTimeout(() => {
+          const d = document.createElement('div');
+          d.textContent = '[ ok ] ' + l;
+          box.appendChild(d);
+          blip(1200);
+        }, i * 700);
+      });
+      const bar = document.getElementById('md-rb-bar');
+      const bt0 = performance.now();
+      (function barTick(now){
+        const p = Math.min(1, ((now || performance.now()) - bt0) / 6000);
+        bar.style.width = (p * 100) + '%';
+        document.getElementById('md-rb-count').textContent = 'reboot in ' + Math.max(0, Math.ceil(6 - p * 6)) + '...';
+        if(p < 1) requestAnimationFrame(barTick);
+      })();
+    }, 13000);
+
+    setTimeout(() => flash.classList.add('go'), 20500);
+    setTimeout(() => window.location.reload(), 21100);
+  }
 })();
