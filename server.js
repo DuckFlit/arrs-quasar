@@ -127,12 +127,14 @@ const { readDb, writeDb } = require('./src/db');
 const jwtLib = require('jsonwebtoken');
 
 app.post('/api/admin/meltdown/trigger', async (req, res) => {
-  const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
-  const cookies = req.cookies || {};
-  const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
-  let ok = false;
-  if (token) { try { jwtLib.verify(token, secret); ok = true; } catch (e) {} }
-  if (!ok && req.headers['x-admin-key'] && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD) ok = true;
+  const body = req.body || {};
+  let ok = !!(body.key && body.key === process.env.ADMIN_PASSWORD);
+  if (!ok) {
+    const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
+    const cookies = req.cookies || {};
+    const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
+    if (token) { try { jwtLib.verify(token, secret); ok = true; } catch (e) {} }
+  }
   if (!ok) return res.status(401).json({ error: 'unauthorized' });
 
   const db = readDb();
