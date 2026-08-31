@@ -245,6 +245,32 @@ app.get('/api/admin/analytics', async (req, res) => {
     chains: chainsStats,
     updatedAt: Date.now()
   });
+app.post('/api/admin/wall', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const { nick, text } = req.body || {};
+  const cleanText = String(text || '').trim().slice(0, 140);
+  const cleanNick = String(nick || '').trim().slice(0, 24) || 'OPERATOR';
+  if(!cleanText) return res.status(400).json({ error: 'empty' });
+  const db = readDb();
+  db.wall = db.wall || [];
+  const msg = { id: 'w' + Date.now() + Math.floor(Math.random() * 999), nick: cleanNick, text: cleanText, at: Date.now() };
+  db.wall.push(msg);
+  if(db.wall.length > 200) db.wall = db.wall.slice(-200);
+  await writeDb(db);
+  res.json({ ok: true, ...msg });
+});
+
+app.put('/api/admin/wall/:id', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  const msg = (db.wall || []).find(m => m.id === req.params.id);
+  if(!msg) return res.status(404).json({ error: 'not found' });
+  const { nick, text } = req.body || {};
+  if(text !== undefined) msg.text = String(text).trim().slice(0, 140);
+  if(nick !== undefined) msg.nick = String(nick).trim().slice(0, 24) || msg.nick;
+  await writeDb(db);
+  res.json({ ok: true, ...msg });
+});
 });
 
 // ===== СТЕНА ПЕРЕХВАТОВ =====
