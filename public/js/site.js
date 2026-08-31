@@ -524,7 +524,7 @@ document.getElementById('term-panel').addEventListener('click', () => inputEl.fo
 setTimeout(runBoot, 300);
 
 // ============================================================
-// MELTDOWN: live-тревога, запускаемая из админки
+// MELTDOWN: live-тревога, запускаемая из админки (MEGA)
 // ============================================================
 (function(){
   let lastMdId = null, running = false;
@@ -535,18 +535,18 @@ setTimeout(runBoot, 300);
       const r = await fetch('/api/public/site');
       const s = await r.json();
       const md = s && s.meltdown;
-      // проверяем: активен И не показывался в этой сессии
       const shown = sessionStorage.getItem('md_shown_' + (md && md.id));
       if(md && md.active && !shown && md.id !== lastMdId && (Date.now() - md.startedAt) < 90000){
         lastMdId = md.id;
         sessionStorage.setItem('md_shown_' + md.id, '1');
-        startMeltdown(md.id);
+        startMeltdown();
       }
     }catch(e){}
   }
   setInterval(pollMeltdown, 2000);
   setTimeout(pollMeltdown, 800);
 
+  /* ---------- звук ---------- */
   let mctx = null;
   function mAudio(){ if(!mctx){ try{ mctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return mctx; }
   function siren(){
@@ -562,6 +562,18 @@ setTimeout(runBoot, 300);
       g.gain.exponentialRampToValueAtTime(.06, t + .06);
       g.gain.exponentialRampToValueAtTime(.0001, t + 1.15);
       o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1.2);
+    }catch(e){}
+  }
+  function drone(){
+    const ctx = mAudio(); if(!ctx) return;
+    try{
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 55;
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(.08, t + .4);
+      g.gain.exponentialRampToValueAtTime(.0001, t + 3);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 3.2);
     }catch(e){}
   }
   function blip(f){
@@ -593,25 +605,35 @@ setTimeout(runBoot, 300);
     '[!!] THEY ARE IN THE WIRE',
   ];
 
-  function startMeltdown(mdId){
+  function startMeltdown(){
     running = true;
     const st = document.createElement('style');
     st.textContent = `
       #md-ov{position:fixed;inset:0;z-index:99990;background:#140202;color:#ff4d4d;font-family:'IBM Plex Mono',monospace;overflow:hidden;}
       #md-ov .md-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 1px,transparent 1px 3px);pointer-events:none;}
+      #md-ov .md-vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(255,0,0,.35) 100%);animation:md-vig 1.2s ease-in-out infinite;pointer-events:none;}
+      @keyframes md-vig{0%,100%{opacity:.4}50%{opacity:1}}
       #md-ov .md-stripes{position:absolute;top:0;left:0;right:0;height:14px;background:repeating-linear-gradient(45deg,#ff3b30 0 16px,#000 16px 32px);animation:md-move 1s linear infinite;}
       #md-ov .md-stripes.bot{top:auto;bottom:0;animation-direction:reverse;}
       @keyframes md-move{to{background-position:45px 0;}}
-      #md-ov .md-title{position:absolute;top:8%;left:0;right:0;text-align:center;font-family:'Black Ops One',cursive;font-size:clamp(26px,6vw,58px);color:#ff3b30;text-shadow:0 0 30px rgba(255,59,48,.8),3px 0 #5fd0d6,-3px 0 #ff5fae;animation:md-flash .5s steps(2) infinite;}
+      #md-ov .md-title{position:absolute;top:6%;left:0;right:0;text-align:center;font-family:'Black Ops One',cursive;font-size:clamp(26px,6vw,58px);color:#ff3b30;text-shadow:0 0 30px rgba(255,59,48,.8),3px 0 #5fd0d6,-3px 0 #ff5fae;animation:md-flash .5s steps(2) infinite;}
       @keyframes md-flash{0%,100%{opacity:1}50%{opacity:.55}}
-      #md-ov .md-sub{position:absolute;top:calc(8% + 74px);left:0;right:0;text-align:center;font-size:12px;letter-spacing:.4em;color:#ffb0b0;text-transform:uppercase;}
-      #md-ov .md-dump{position:absolute;top:26%;left:6%;right:6%;height:34%;overflow:hidden;font-size:12px;line-height:1.7;text-shadow:0 0 6px rgba(255,59,48,.6);}
-      #md-ov .md-skull{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(40vw,280px);opacity:0;transition:opacity .8s;pointer-events:none;filter:drop-shadow(0 0 30px rgba(255,59,48,.6));}
-      #md-ov .md-skull.show{opacity:1;}
-      #md-ov .md-report{position:absolute;top:70%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.6);padding:14px 18px;display:none;}
+      #md-ov .md-sub{position:absolute;top:calc(6% + 74px);left:0;right:0;text-align:center;font-size:12px;letter-spacing:.4em;color:#ffb0b0;text-transform:uppercase;}
+      #md-ov .md-dump{position:absolute;top:24%;left:6%;width:44%;height:36%;overflow:hidden;font-size:12px;line-height:1.7;text-shadow:0 0 6px rgba(255,59,48,.6);}
+      #md-ov .md-skull{position:absolute;top:26%;right:8%;width:min(34vw,300px);opacity:0;transition:opacity 1s;pointer-events:none;filter:drop-shadow(0 0 40px rgba(255,59,48,.7));}
+      #md-ov .md-skull.show{opacity:1;animation:md-skull 2s ease-in-out infinite;}
+      @keyframes md-skull{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+      #md-ov .md-glitchbars{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+      #md-ov .md-glitchbars i{position:absolute;left:0;right:0;height:6px;background:rgba(255,59,48,.5);mix-blend-mode:screen;animation:md-gbar .5s steps(3) infinite;}
+      @keyframes md-gbar{0%{transform:translateX(0)}50%{transform:translateX(-30px)}100%{transform:translateX(20px)}}
+      #md-matrix{position:absolute;inset:0;opacity:0;transition:opacity 1s;pointer-events:none;}
+      #md-matrix.show{opacity:.5;}
+      #md-ov .md-report{position:absolute;top:68%;left:50%;transform:translateX(-50%);width:min(92vw,560px);border:2px solid #ff3b30;background:rgba(0,0,0,.7);padding:14px 18px;display:none;box-shadow:0 0 40px rgba(255,59,48,.4);}
       #md-ov .md-report h4{margin:0 0 10px;font-size:11px;letter-spacing:.3em;color:#ffb0b0;}
       #md-ov .md-rep-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;}
       #md-ov .md-rep-row b{color:#fff;}
+      #md-ov .md-fail{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-family:'Black Ops One',cursive;font-size:clamp(40px,10vw,110px);color:#ff3b30;text-shadow:0 0 40px rgba(255,59,48,.9),4px 0 #5fd0d6,-4px 0 #ff5fae;animation:md-flash .3s steps(2) infinite;letter-spacing:.1em;}
+      #md-ov .md-fail.show{display:flex;}
       #md-ov.shake{animation:md-shake .18s linear infinite;}
       @keyframes md-shake{0%{transform:translate(0)}25%{transform:translate(-8px,5px)}50%{transform:translate(7px,-6px)}75%{transform:translate(-5px,-4px)}100%{transform:translate(0)}}
       #md-reboot{position:fixed;inset:0;z-index:99991;background:#000;color:#7ea87a;font-family:'IBM Plex Mono',monospace;display:none;padding:10vh 8vw;font-size:13px;line-height:1.9;}
@@ -627,12 +649,15 @@ setTimeout(runBoot, 300);
     ov.id = 'md-ov';
     ov.innerHTML = `
       <div class="md-scan"></div>
+      <div class="md-vig"></div>
       <div class="md-stripes"></div>
       <div class="md-stripes bot"></div>
-      <div class="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
+      <canvas id="md-matrix"></canvas>
+      <div class="md-glitchbars" id="md-gbars"></div>
+      <div class="md-title" id="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
       <div class="md-sub">trace: cia // directorate-9 :: all nodes burned</div>
       <div class="md-dump" id="md-dump"></div>
-      <img class="md-skull" id="md-skull" src="https://media.tenor.com/8ZjZjZjZjZjZ/ultrakill-skull.gif" alt="">
+      <img class="md-skull" id="md-skull" src="https://media.tenor.com/2fJZqZ5ZqZkAAAAC/ultrakill-skull.gif" alt="">
       <div class="md-report" id="md-report">
         <h4>// ОТЧЁТ ОБ ИНЦИДЕНТЕ //</h4>
         <div class="md-rep-row"><span>узлов потеряно</span><b id="md-r1">0/12</b></div>
@@ -640,6 +665,7 @@ setTimeout(runBoot, 300);
         <div class="md-rep-row"><span>целостность сети</span><b id="md-r3">100%</b></div>
         <div class="md-rep-row"><span>источник атаки</span><b>CIA // ВНУТРЕННИЙ СЛИВ</b></div>
       </div>
+      <div class="md-fail" id="md-fail">SYSTEM FAILURE</div>
     `;
     document.body.appendChild(ov);
 
@@ -652,9 +678,59 @@ setTimeout(runBoot, 300);
     reboot.innerHTML = '<div id="md-rb-lines"></div><div class="md-bar"><i id="md-rb-bar"></i></div><div id="md-rb-count"></div>';
     document.body.appendChild(reboot);
 
-    siren();
-    const sirenIv = setInterval(siren, 1300);
+    /* ---------- красный матричный дождь ---------- */
+    const mc = document.getElementById('md-matrix');
+    const mctx2 = mc.getContext('2d');
+    function mresize(){ mc.width = innerWidth; mc.height = innerHeight; }
+    mresize();
+    const mchars = 'ЦРУCIA01<>/\\|░▒▓█▚▞!';
+    const msize = 14;
+    let mcols = Math.floor(mc.width / msize);
+    let mdrops = Array(mcols).fill(1);
+    let mrun = true;
+    (function mdraw(){
+      if(!mrun) return;
+      mctx2.fillStyle = 'rgba(20,2,2,0.1)';
+      mctx2.fillRect(0,0,mc.width,mc.height);
+      mctx2.fillStyle = '#ff3b30';
+      mctx2.font = msize + 'px IBM Plex Mono';
+      for(let i=0;i<mdrops.length;i++){
+        mctx2.fillText(mchars[Math.floor(Math.random()*mchars.length)], i*msize, mdrops[i]*msize);
+        if(mdrops[i]*msize > mc.height && Math.random() > .975) mdrops[i] = 0;
+        mdrops[i]++;
+      }
+      setTimeout(() => requestAnimationFrame(mdraw), 70);
+    })();
 
+    /* ---------- глитч-полосы ---------- */
+    const gbars = document.getElementById('md-gbars');
+    for(let i=0;i<6;i++){
+      const b = document.createElement('i');
+      b.style.top = (10 + Math.random()*80) + '%';
+      b.style.animationDelay = (Math.random()*.5) + 's';
+      gbars.appendChild(b);
+    }
+
+    /* ---------- глитч заголовка ---------- */
+    const titleEl = document.getElementById('md-title');
+    const origTitle = titleEl.textContent;
+    const glitchChars = '░▒▓█▚▞<>/\\|!?ЦРУ';
+    setInterval(() => {
+      if(!running) return;
+      let s = '';
+      for(let i=0;i<origTitle.length;i++){
+        s += Math.random() < .15 ? glitchChars[Math.floor(Math.random()*glitchChars.length)] : origTitle[i];
+      }
+      titleEl.textContent = s;
+      setTimeout(() => { titleEl.textContent = origTitle; }, 100);
+    }, 900);
+
+    /* ---------- звук ---------- */
+    siren(); drone();
+    const sirenIv = setInterval(siren, 1300);
+    const droneIv = setInterval(drone, 3200);
+
+    /* ---------- дамп ---------- */
     const dump = document.getElementById('md-dump');
     let di = 0;
     const dumpIv = setInterval(() => {
@@ -666,29 +742,29 @@ setTimeout(runBoot, 300);
       di++;
     }, 140);
 
-    // 0-3с: читаем заголовок БЕЗ тряски
-    // 3с: появляется череп
-    setTimeout(() => document.getElementById('md-skull').classList.add('show'), 3000);
-    
-    // 6с: начинается тряска
-    setTimeout(() => ov.classList.add('shake'), 6000);
-
-    // 8с: отчёт
+    /* ---------- ТАЙМЛАЙН ---------- */
+    // 4с: череп
+    setTimeout(() => document.getElementById('md-skull').classList.add('show'), 4000);
+    // 7с: тряска + матрица
+    setTimeout(() => { ov.classList.add('shake'); document.getElementById('md-matrix').classList.add('show'); }, 7000);
+    // 9с: отчёт
     setTimeout(() => {
       document.getElementById('md-report').style.display = 'block';
       const t0 = performance.now();
       (function rep(now){
-        const p = Math.min(1, ((now || performance.now()) - t0) / 5000);
+        const p = Math.min(1, ((now || performance.now()) - t0) / 6000);
         document.getElementById('md-r1').textContent = Math.floor(p * 12) + '/12';
         document.getElementById('md-r2').textContent = Math.floor(p * 247);
         document.getElementById('md-r3').textContent = Math.floor(100 - p * 100) + '%';
         if(p < 1) requestAnimationFrame(rep);
       })();
-    }, 8000);
-
-    // 15с: перезапуск
+    }, 9000);
+    // 17с: SYSTEM FAILURE
+    setTimeout(() => { document.getElementById('md-fail').classList.add('show'); drone(); }, 17000);
+    // 21с: перезапуск
     setTimeout(() => {
-      clearInterval(sirenIv); clearInterval(dumpIv);
+      clearInterval(sirenIv); clearInterval(droneIv); clearInterval(dumpIv);
+      mrun = false;
       ov.style.display = 'none';
       reboot.style.display = 'block';
       const lines = [
@@ -718,15 +794,16 @@ setTimeout(runBoot, 300);
         document.getElementById('md-rb-count').textContent = 'reboot in ' + Math.max(0, Math.ceil(6 - p * 6)) + '...';
         if(p < 1) requestAnimationFrame(barTick);
       })();
-    }, 15000);
+    }, 21000);
 
-    // 22с: вспышка + сброс флага + reload
+    // 28с: вспышка + сброс флага + reload
     setTimeout(async () => {
       flash.classList.add('go');
-      // сбрасываем флаг в базе, чтобы не зацикливалось
-      try{ await fetch('/api/admin/meltdown/reset', { method:'POST', credentials:'include' }); }catch(e){}
-      setTimeout(() => window.location.reload(), 600);
-    }, 22000);
+      try{
+        await fetch('/api/admin/meltdown/reset', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:'{}' });
+      }catch(e){}
+      setTimeout(() => window.location.reload(), 700);
+    }, 28000);
   }
 })();
 
