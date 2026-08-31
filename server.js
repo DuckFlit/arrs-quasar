@@ -1,6 +1,17 @@
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
+// ===== АНАЛИТИКА: онлайн + heartbeat =====
+const activeSessions = new Map(); // visitorId -> lastPing timestamp
+const ONLINE_TTL = 30000; // 30 сек без пинга = ушёл
+
+function cleanupSessions(){
+  const now = Date.now();
+  for(const [vid, last] of activeSessions){
+    if(now - last > ONLINE_TTL) activeSessions.delete(vid);
+  }
+}
+setInterval(cleanupSessions, 10000);
 const path = require('path');
 
 const adminAuth = require('./src/routes/adminAuth');
@@ -162,6 +173,79 @@ app.use('/api/admin/pages', adminPages);
 app.use('/api/admin/eggs', adminEggs);
 app.use('/api/admin/settings', adminSettings);
 app.use('/api/public', publicApi);
+
+// heartbeat от терминала (поллит клиент каждые ~10 сек)
+app.post('/api/public/ping', (req, res) => {
+  const vid = req.cookies && req.cookies.arrs_vid;
+  if(vid){
+    activeSessions.set(vid, Date.now());
+  }
+  res.json({ ok: true, online: activeSessions.size });
+});
+
+// аналитика для админки
+app.get('/api/admin/analytics', async (req, res) => {
+  // проверка авторизации
+  const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
+  const cookies = req.cookies || {};
+  const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
+  let ok = false;
+  if(token){ try{ require('jsonwebtoken').verify(token, secret); ok = true; }catch(e){} }
+  if(!ok){
+    const key = req.headers['x-admin-key'];
+    if(key && key === process.env.ADMIN_PASSWORD) ok = true;
+  }
+  if(!ok) return res.status(401).json({ error: 'unauthorized' });
+
+  const db = readDb();
+  const progress = db.progress || {};
+  const chains = db.chains || [];
+  const profiles = db.profiles || [];
+
+  // агрегация по цепочкам
+  const chainsStats = chains.map(c => {
+    const steps = (c.steps || []).length;
+    const visitors = Object.entries(progress)
+      .map(([vid, ch]) => ({ vid, step: ch[c.id] || 0 }))
+      .filter(x => x.step > 0);
+    
+    // сколько на каждом шаге
+    const byStep = Array.from({length: steps + 1}, (_, i) => ({
+      step: i,
+      count: visitors.filter(v => v.step === i).length,
+      done: i === steps
+    }));
+    
+    // сколько дошли до профиля
+    const started = visitors.filter(v => v.step > 0).length;
+    const completed = visitors.filter(v => v.step >= steps && steps > 0).length;
+    
+    return {
+      id: c.id,
+      name: c.name,
+      profileId: c.profileId,
+      profileName: c.profileId ? (profiles.find(p => p.id === c.profileId)?.displayName || '—') : 'глобальная',
+      steps,
+      started,
+      completed,
+      byStep
+    };
+  });
+
+  // общий онлайн
+  cleanupSessions();
+  const online = activeSessions.size;
+
+  // всего игроков когда-либо
+  const totalVisitors = Object.keys(progress).length;
+
+  res.json({
+    online,
+    totalVisitors,
+    chains: chainsStats,
+    updatedAt: Date.now()
+  });
+});
 
 // ---- статика: публичный терминал-сайт + панель администратора ----
 app.use(express.static(path.join(__dirname, 'public')));
