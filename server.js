@@ -10,6 +10,7 @@ const adminChains = require('./src/routes/adminChains');
 const adminPages = require('./src/routes/adminPages');
 const adminEggs = require('./src/routes/adminEggs');
 const adminSettings = require('./src/routes/adminSettings');
+const adminMeltdown = require('./src/routes/adminMeltdown');
 const publicApi = require('./src/routes/publicApi');
 
 const app = express();
@@ -130,6 +131,7 @@ app.use('/api/admin/chains', adminChains);
 app.use('/api/admin/pages', adminPages);
 app.use('/api/admin/eggs', adminEggs);
 app.use('/api/admin/settings', adminSettings);
+app.use('/api/admin/meltdown', adminMeltdown);
 app.use('/api/public', publicApi);
 
 // ---- статика: публичный терминал-сайт + панель администратора ----
