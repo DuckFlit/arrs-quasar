@@ -301,16 +301,20 @@ const SCHEMAS = {
     columns: [
       { key:'trigger', label:'Команда' },
       { key:'profileId', label:'Профиль', render: v => v ? (profilesCache.find(p=>p.id===v)?.displayName || '—') : 'глобальная' },
+      { key:'typewriter', label:'Печать', render: v => v ? '⌨️' : '—' },
       { key:'redirectUrl', label:'Редирект', render: v => v ? '🔗' : '—' },
       { key:'published', label:'Статус', render: v => `<span class="pill ${v!==false?'on':''}">${v!==false?'активна':'выключена'}</span>`, toggle:true }
     ],
     fields: [
-      { key:'trigger', label:'Команда (что вводит игрок в терминале)', type:'text', required:true, placeholder:'whoami2 / codeword / whatever' },
+      { key:'trigger', label:'Команда (что вводит игрок)', type:'text', required:true, placeholder:'codeword / whoami2' },
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'responseText', label:'Текст ответа терминала', type:'textarea', big:true },
-      { key:'redirectUrl', label:'Переход на URL после ответа (необязательно)', type:'text', 
-        placeholder:'https://... или /page/coordinates',
-        hint:'если заполнено — через 2 секунды после вывода ответа терминал откроет эту ссылку' },
+      { key:'typewriter', label:'Печатать посимвольно (плавно)', type:'checkbox' },
+      { key:'delay', label:'Задержка перед ответом, мс (0 = сразу)', type:'text', placeholder:'0' },
+      { key:'soundStyle', label:'Звук при ответе', type:'select', options:[['none','без звука'],['beep','короткий сигнал'],['laugh','смех']] },
+      { key:'clearScreen', label:'Очистить экран перед ответом', type:'checkbox' },
+      { key:'jolt', label:'Тряска терминала при ответе', type:'checkbox' },
+      { key:'redirectUrl', label:'Переход на URL после ответа', type:'text', placeholder:'https://... или /page/...' },
       { key:'published', label:'Активна', type:'checkbox', default:true }
     ]
   },
@@ -378,6 +382,22 @@ const SCHEMAS = {
     fields: [
       { key:'text', label:'Сообщение', type:'text', required:true },
       { key:'nick', label:'Позывной', type:'text' },
+    ]
+  }
+  ,radio: {
+    title: 'Радиочастоты', apiBase: '/api/admin/radio',
+    columns: [
+      { key:'f', label:'МГц' },
+      { key:'type', label:'Тип' },
+      { key:'payload', label:'Сообщение' },
+      { key:'special', label:'Особая', render: v => v ? '⭐' : '—' },
+    ],
+    fields: [
+      { key:'f', label:'Частота, МГц (напр. 14.4)', type:'text', required:true },
+      { key:'type', label:'Тип сигнала', type:'select', options:[['morse','морзе (звук + точки/тире)'],['text','текстовый перехват'],['voice','голос в помехах']] },
+      { key:'payload', label:'Сообщение (для морзе — латиница/цифры)', type:'textarea', required:true },
+      { key:'note', label:'Подсказка после сигнала (необязательно)', type:'text' },
+      { key:'special', label:'Особая частота (доп. намёк игроку)', type:'checkbox' },
     ]
   }
 };
