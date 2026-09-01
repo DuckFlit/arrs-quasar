@@ -161,7 +161,7 @@
       if(t) t.textContent = new Date(data.updatedAt).toLocaleTimeString('ru-RU');
     }
   }
-
+  window.renderAnalyticsTab = refresh;
   // Подписка на переключение вкладок через делегирование
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.nav-btn');
