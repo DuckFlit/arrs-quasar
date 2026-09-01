@@ -97,7 +97,9 @@ document.getElementById('admin-logout').addEventListener('click', async () => {
 function enterDashboard(){
   loginScreen.classList.add('hidden');
   dashboard.classList.remove('hidden');
-  activateTab('profiles');
+  const saved = localStorage.getItem('arrs_admin_tab');
+  const valid = saved && (SCHEMAS[saved] || ['settings','analytics','wall','radio'].includes(saved));
+  activateTab(valid ? saved : 'profiles');
 }
 
 checkSession();
@@ -414,9 +416,11 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 
 async function activateTab(tab){
   activeTab = tab;
+  try{ localStorage.setItem('arrs_admin_tab', tab); }catch(e){}
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   await loadProfilesCache();
   if(tab === 'settings') return renderSettingsTab();
+  if(tab === 'analytics'){ if(window.renderAnalyticsTab) return window.renderAnalyticsTab(); return; }
   renderListTab(tab);
 }
 
