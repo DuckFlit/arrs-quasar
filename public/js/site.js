@@ -28,9 +28,15 @@ function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 function jolt(){ wrapEl.classList.remove('jolt'); void wrapEl.offsetWidth; wrapEl.classList.add('jolt'); }
 function printRich(html){
   const div = document.createElement('div');
-  div.style.margin = '6px 0';
   div.innerHTML = html;
-  outEl.appendChild(div);
+  // если внутри есть position:fixed — это оверлей (Папирус, Эдуардо и т.п.):
+  // вешаем на body, иначе transform/filter страницы отрежет его рамкой
+  if(/position:\s*fixed/i.test(html)){
+    document.body.appendChild(div);
+  } else {
+    div.style.margin = '6px 0';
+    outEl.appendChild(div);
+  }
   panelEl.scrollTop = panelEl.scrollHeight;
   // активируем <script>, которые innerHTML сам не запускает
   div.querySelectorAll('script').forEach(old => {
