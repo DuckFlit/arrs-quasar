@@ -839,7 +839,7 @@ setTimeout(runBoot, 300);
       <div class="md-stripes"></div>
       <div class="md-stripes bot"></div>
       <canvas id="md-matrix"></canvas>
-      <div class="md-title" id="md-title">ARRS СКОМПРОМЕТИРОВАН</div>
+      <div class="md-title" id="md-title">ARRS COMPROMISED</div>
       <div class="md-sub">trace: cia // directorate-9 :: all nodes burned</div>
       <div class="md-dump" id="md-dump"></div>
       <img class="md-skull" id="md-skull" src="https://media.tenor.com/2fJZqZ5ZqZkAAAAC/ultrakill-skull.gif" alt="">
