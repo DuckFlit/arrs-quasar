@@ -26,6 +26,21 @@ function printLine(html, cls){
 function setPrefix(text){ prefixEl.textContent = text; }
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function jolt(){ wrapEl.classList.remove('jolt'); void wrapEl.offsetWidth; wrapEl.classList.add('jolt'); }
+function typeLines(lines, cls = 'out-dim'){
+  let i = 0;
+  (function next(){
+    if(i >= lines.length) return;
+    const text = lines[i]; i++;
+    const div = printLine('', cls);
+    let c = 0;
+    const iv = setInterval(() => {
+      c += 2;
+      div.innerHTML = escapeHtml(text.slice(0, c));
+      panelEl.scrollTop = panelEl.scrollHeight;
+      if(c >= text.length){ clearInterval(iv); setTimeout(next, 40); }
+    }, 10);
+  })();
+}
 
 async function api(method, url, body){
   const res = await fetch(url, {
@@ -187,19 +202,21 @@ async function handleCommand(raw){
   if(cmd === '') return;
 
   if(cmd === 'help'){
-    printLine('available commands:', 'out-dim');
-    printLine('  login    — request access to the restricted archive', 'out-dim');
-    printLine('  whoami   — show current session identity', 'out-dim');
-    printLine('  status   — node signal status', 'out-dim');
-    printLine('  clear    — clear the screen', 'out-dim');
-    printLine('  ...additional commands may exist. this terminal rewards curiosity.', 'out-dim');
-    printLine('  dossier  — reopen your personnel file', 'out-dim');
-    printLine('  scan     — sweep the radio band', 'out-dim');
-    printLine('  scan N   — tune to frequency (try 14.4)', 'out-dim');
-    printLine('  morse    — morse reference table', 'out-dim');
-    printLine('  wall     — read the wall of intercepts', 'out-dim');
-    printLine('  tx text  — broadcast to ALL terminals live', 'out-dim');
-    printLine('  nick N   — set your callsign for the wall', 'out-dim');
+    typeLines([
+      'available commands:',
+      '  login    — request access to the restricted archive',
+      '  whoami   — show current session identity',
+      '  status   — node signal status',
+      '  clear    — clear the screen',
+      '  dossier  — reopen your personnel file',
+      '  scan     — sweep the radio band',
+      '  scan N   — tune to frequency (try 14.4)',
+      '  morse    — morse reference table',
+      '  wall     — read the wall of intercepts',
+      '  tx text  — broadcast to ALL terminals live',
+      '  nick N   — set your callsign for the wall',
+      '  ...this terminal rewards curiosity.',
+    ]);
     return;
   }
   if(cmd === 'login'){
@@ -267,17 +284,24 @@ async function handleCommand(raw){
   const { data } = await api('POST', '/api/public/command', { profileId: currentProfile ? currentProfile.id : null, input: val });
   if(data && data.ok){
     if(data.kind === 'command'){
-      String(data.text || '').split('\n').forEach(line => printLine(escapeHtml(line), 'out-dim'));
-      if(data.redirectUrl){
-        printLine(`&rarr; redirecting to <a href="${escapeHtml(data.redirectUrl)}" style="color:var(--sig-cyan)" target="_blank">${escapeHtml(data.redirectUrl)}</a>`, 'out-cyan');
-        setTimeout(() => {
-          if(data.redirectUrl.startsWith('http://') || data.redirectUrl.startsWith('https://')){
-            window.open(data.redirectUrl, '_blank');
-          } else {
-            window.location.href = data.redirectUrl;
-          }
-        }, 2000);
-      }
+      const lines = String(data.text || '').split('\n');
+      const apply = () => {
+        if(data.clearScreen) outEl.innerHTML = '';
+        if(data.jolt) jolt();
+        if(data.soundStyle === 'beep') beepSound();
+        if(data.soundStyle === 'laugh') laughSound();
+        if(data.typewriter) typeLines(lines);
+        else lines.forEach(line => printLine(escapeHtml(line), 'out-dim'));
+        if(data.redirectUrl){
+          printLine(`&rarr; redirecting to <a href="${escapeHtml(data.redirectUrl)}" style="color:var(--sig-cyan)" target="_blank">${escapeHtml(data.redirectUrl)}</a>`, 'out-cyan');
+          setTimeout(() => {
+            if(data.redirectUrl.startsWith('http://') || data.redirectUrl.startsWith('https://')) window.open(data.redirectUrl, '_blank');
+            else window.location.href = data.redirectUrl;
+          }, 2000);
+        }
+      };
+      const delay = parseInt(data.delay, 10) || 0;
+      if(delay > 0) setTimeout(apply, delay); else apply();
     } else if(data.kind === 'chain'){
       if(data.locked){
         printLine(escapeHtml(data.message), 'out-err');
@@ -549,13 +573,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MORSE = {A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'---..',9:'----.'};
 function toMorse(str){ return str.toUpperCase().split('').map(ch => ch === ' ' ? '/' : (MORSE[ch] || '')).join(' '); }
 
-const RADIO = [
+const DEFAULT_RADIO = [
   { f: 3.7,  type: 'text',  payload: '...повторяю... колонна вышла из-под контроля... не возвращайтесь в город...' },
   { f: 7.83, type: 'morse', payload: 'SOS',  note: 'кто-то всё ещё зовёт на помощь' },
   { f: 11.2, type: 'text',  payload: '[перехват CIA] ...списки класса B утверждены... зачистка узла 14-4 отложена...' },
   { f: 14.4, type: 'morse', payload: 'WEWLAD', special: true },
   { f: 21.5, type: 'voice', payload: 'о̸н̸и̶ ̸в̶ ̸п̸р̸о̸в̸о̸д̸а̸х̸...̸ ̸не ̸в̸е̸рь ̸з̸е̸р̸к̸а̸л̸а̸м̸' },
 ];
+let RADIO = DEFAULT_RADIO.slice();
+(async function loadRadio(){
+  const { data } = await api('GET', '/api/public/radio');
+  if(data && data.length){
+    RADIO = data.map(r => ({ ...r, f: parseFloat(String(r.f).replace(',', '.')) }));
+  }
+})();
 
 function staticNoise(ms){
   try{
