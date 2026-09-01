@@ -311,6 +311,8 @@ const SCHEMAS = {
       { key:'trigger', label:'Команда (что вводит игрок)', type:'text', required:true, placeholder:'codeword / whoami2' },
       { key:'profileId', label:'Привязка к профилю', type:'profileSelect' },
       { key:'responseText', label:'Текст ответа терминала', type:'textarea', big:true },
+      { key:'rich', label:'Rich-режим: HTML + JS в ответе', type:'checkbox',
+        hint:'ответ рендерится как HTML, <script> выполняются — для мини-пасхалок прямо в терминале' },
       { key:'typewriter', label:'Печатать посимвольно (плавно)', type:'checkbox' },
       { key:'delay', label:'Задержка перед ответом, мс (0 = сразу)', type:'text', placeholder:'0' },
       { key:'soundStyle', label:'Звук при ответе', type:'select', options:[['none','без звука'],['beep','короткий сигнал'],['laugh','смех']] },
