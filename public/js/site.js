@@ -26,6 +26,21 @@ function printLine(html, cls){
 function setPrefix(text){ prefixEl.textContent = text; }
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function jolt(){ wrapEl.classList.remove('jolt'); void wrapEl.offsetWidth; wrapEl.classList.add('jolt'); }
+function printRich(html){
+  const div = document.createElement('div');
+  div.style.margin = '6px 0';
+  div.innerHTML = html;
+  outEl.appendChild(div);
+  panelEl.scrollTop = panelEl.scrollHeight;
+  // активируем <script>, которые innerHTML сам не запускает
+  div.querySelectorAll('script').forEach(old => {
+    const s = document.createElement('script');
+    [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
+    s.textContent = old.textContent;
+    old.replaceWith(s);
+  });
+  return div;
+}
 function typeLines(lines, cls = 'out-dim'){
   let i = 0;
   (function next(){
@@ -290,7 +305,8 @@ async function handleCommand(raw){
         if(data.jolt) jolt();
         if(data.soundStyle === 'beep') beepSound();
         if(data.soundStyle === 'laugh') laughSound();
-        if(data.typewriter) typeLines(lines);
+        if(data.rich) printRich(String(data.text || ''));
+        else if(data.typewriter) typeLines(lines);
         else lines.forEach(line => printLine(escapeHtml(line), 'out-dim'));
         if(data.redirectUrl){
           printLine(`&rarr; redirecting to <a href="${escapeHtml(data.redirectUrl)}" style="color:var(--sig-cyan)" target="_blank">${escapeHtml(data.redirectUrl)}</a>`, 'out-cyan');
