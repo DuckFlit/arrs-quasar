@@ -305,7 +305,9 @@ async function handleCommand(raw){
         if(data.jolt) jolt();
         if(data.soundStyle === 'beep') beepSound();
         if(data.soundStyle === 'laugh') laughSound();
-        if(data.rich) printRich(String(data.text || ''));
+        const rawTxt = String(data.text || '');
+        const looksRich = /<(div|pre|script|canvas|img|button|style|span)\b/i.test(rawTxt);
+        if(data.rich || looksRich) printRich(rawTxt);
         else if(data.typewriter) typeLines(lines);
         else lines.forEach(line => printLine(escapeHtml(line), 'out-dim'));
         if(data.redirectUrl){
