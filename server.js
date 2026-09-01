@@ -174,6 +174,64 @@ app.use('/api/admin/eggs', adminEggs);
 app.use('/api/admin/settings', adminSettings);
 app.use('/api/public', publicApi);
 
+// ===== РАДИОЧАСТОТЫ (управляются из админки) =====
+const DEFAULT_RADIO = [
+  { f: '3.7',  type: 'text',  payload: '...повторяю... колонна вышла из-под контроля... не возвращайтесь в город...' },
+  { f: '7.83', type: 'morse', payload: 'SOS',  note: 'кто-то всё ещё зовёт на помощь' },
+  { f: '11.2', type: 'text',  payload: '[перехват CIA] ...списки класса B утверждены... зачистка узла 14-4 отложена...' },
+  { f: '14.4', type: 'morse', payload: 'WEWLAD', special: true },
+  { f: '21.5', type: 'voice', payload: 'о̸н̸и̶ ̸в̶ ̸п̸р̸о̸в̸о̸д̸а̸х̸...̸ ̸не ̸в̸е̸рь ̸з̸е̸р̸к̸а̸л̸а̸м̸' },
+];
+
+function ensureRadio(db){
+  if(!db.radio || !db.radio.length){
+    db.radio = DEFAULT_RADIO.map((d, i) => ({ ...d, id: 'r' + i }));
+  }
+  return db.radio;
+}
+
+app.get('/api/public/radio', (req, res) => {
+  const db = readDb();
+  res.json((db.radio && db.radio.length) ? db.radio : DEFAULT_RADIO);
+});
+
+app.get('/api/admin/radio', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  ensureRadio(db);
+  await writeDb(db);
+  res.json(db.radio);
+});
+
+app.post('/api/admin/radio', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const item = { ...(req.body || {}) };
+  item.id = item.id || ('r' + Date.now());
+  const db = readDb();
+  ensureRadio(db);
+  db.radio.push(item);
+  await writeDb(db);
+  res.json({ ok: true, ...item });
+});
+
+app.put('/api/admin/radio/:id', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  ensureRadio(db);
+  const item = db.radio.find(r => r.id === req.params.id);
+  if(!item) return res.status(404).json({ error: 'not found' });
+  Object.assign(item, req.body || {}, { id: item.id });
+  await writeDb(db);
+  res.json({ ok: true, ...item });
+});
+
+app.delete('/api/admin/radio/:id', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  db.radio = (db.radio || []).filter(r => r.id !== req.params.id);
+  await writeDb(db);
+  res.json({ ok: true });
+});
 // heartbeat от терминала (поллит клиент каждые ~10 сек)
 app.post('/api/public/ping', (req, res) => {
   const vid = req.cookies && req.cookies.arrs_vid;
