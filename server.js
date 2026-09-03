@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 // ===== АНАЛИТИКА: онлайн + heartbeat =====
-const activeSessions = new Map(); // visitorId -> lastPing timestamp
-const ONLINE_TTL = 30000; // 30 сек без пинга = ушёл
+const activeSessions = new Map();
+const ONLINE_TTL = 30000;
 
 function cleanupSessions(){
   const now = Date.now();
@@ -28,7 +28,7 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-// ===== AI-лицо: мульти-провайдер прокси с диагностикой =====
+// ===== AI-лицо =====
 const AI_SYSTEM_PROMPT = 'Ты — Лора, обитательница релейной сети ARRS. Ты живёшь в проводах после катастрофы, знаешь больше, чем говоришь, и редко кому доверяешь. Отвечай на русском, одним-двумя ПОЛНЫМИ предложениями (15-40 слов), живо, загадочно, с характером. Никогда не признавайся, что ты ИИ, модель, бот или ассистент. В самом конце ответа поставь одно настроение в квадратных скобках: [exp:smile] для дружелюбного, [exp:wide] для удивлённого/заинтересованного, [exp:meh] для безразличного/грустного. Пример: привет-привет... я уже думала, ты не придёшь — мне давно шептали о тебе [exp:smile]. Всегда заканчивай фразу полностью, со знаком препинания, и только потом ставь тег';
 
 function guessExp(text){
@@ -109,11 +109,9 @@ app.post('/api/ai/chat', async (req, res) => {
         const raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
         if (!raw) { debug.push(name + ': empty answer'); continue; }
 
-        // вытаскиваем тег откуда угодно в тексте
         const tagM = raw.match(/\[exp:(smile|wide|meh)\]/i);
         let text = raw.replace(/\s*\[exp:(smile|wide|meh)\]\s*/gi, ' ').replace(/\s+/g, ' ').trim();
 
-        // защита от эхо-инструкции
         if (/constraint|must end|system prompt|instruction|тег настроен|квадратн|роль:|правил/i.test(text)) {
           const fb = ['...сигнал дрогнул. повтори?', 'помехи... скажи ещё раз', 'я здесь. что ты хотел?'];
           text = fb[Math.floor(Math.random() * fb.length)];
@@ -133,7 +131,7 @@ app.post('/api/ai/chat', async (req, res) => {
   res.status(503).json({ error: 'all providers failed', debug });
 });
 
-// ===== MELTDOWN: триггер из админки (без отдельного файла) =====
+// ===== MELTDOWN =====
 const { readDb, writeDb } = require('./src/db');
 const jwtLib = require('jsonwebtoken');
 
@@ -164,6 +162,16 @@ app.post('/api/admin/meltdown/reset', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ===== helper для админ-роутов =====
+function adminOk(req){
+  const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
+  const cookies = req.cookies || {};
+  for(const name of Object.keys(cookies)){
+    try{ jwtLib.verify(cookies[name], secret); return true; }catch(e){}
+  }
+  return !!(req.headers['x-admin-key'] && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD);
+}
+
 // ---- API ----
 app.use('/api/admin/auth', adminAuth);
 app.use('/api/admin/profiles', adminProfiles);
@@ -174,7 +182,7 @@ app.use('/api/admin/eggs', adminEggs);
 app.use('/api/admin/settings', adminSettings);
 app.use('/api/public', publicApi);
 
-// ===== РАДИОЧАСТОТЫ (управляются из админки) =====
+// ===== РАДИОЧАСТОТЫ =====
 const DEFAULT_RADIO = [
   { f: '3.7',  type: 'text',  payload: '...повторяю... колонна вышла из-под контроля... не возвращайтесь в город...' },
   { f: '7.83', type: 'morse', payload: 'SOS',  note: 'кто-то всё ещё зовёт на помощь' },
@@ -232,18 +240,16 @@ app.delete('/api/admin/radio/:id', async (req, res) => {
   await writeDb(db);
   res.json({ ok: true });
 });
-// heartbeat от терминала (поллит клиент каждые ~10 сек)
+
+// heartbeat
 app.post('/api/public/ping', (req, res) => {
   const vid = req.cookies && req.cookies.arrs_vid;
-  if(vid){
-    activeSessions.set(vid, Date.now());
-  }
+  if(vid) activeSessions.set(vid, Date.now());
   res.json({ ok: true, online: activeSessions.size });
 });
 
-// аналитика для админки
+// ===== АНАЛИТИКА (ПОЧИНЕНО: закрыт корректно) =====
 app.get('/api/admin/analytics', async (req, res) => {
-  // проверка авторизации
   const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
   const cookies = req.cookies || {};
   const token = cookies.arrs_admin || cookies.admin_token || cookies.token || cookies.jwt;
@@ -260,27 +266,25 @@ app.get('/api/admin/analytics', async (req, res) => {
   const chains = db.chains || [];
   const profiles = db.profiles || [];
 
-  // агрегация по цепочкам
   const chainsStats = chains.map(c => {
     const steps = (c.steps || []).length;
     const visitors = Object.entries(progress)
       .map(([vid, ch]) => ({ vid, step: ch[c.id] || 0 }))
       .filter(x => x.step > 0);
-    
-    // сколько на каждом шаге
+
     const byStep = Array.from({length: steps + 1}, (_, i) => ({
       step: i,
       count: visitors.filter(v => v.step === i).length,
       done: i === steps
     }));
-    
-    // сколько дошли до профиля
+
     const started = visitors.filter(v => v.step > 0).length;
     const completed = visitors.filter(v => v.step >= steps && steps > 0).length;
-    
+
     return {
       id: c.id,
       name: c.name,
+      category: c.category || 'основная',   // ← КАТЕГОРИЯ В АНАЛИТИКЕ
       profileId: c.profileId,
       profileName: c.profileId ? (profiles.find(p => p.id === c.profileId)?.displayName || '—') : 'глобальная',
       steps,
@@ -290,11 +294,8 @@ app.get('/api/admin/analytics', async (req, res) => {
     };
   });
 
-  // общий онлайн
   cleanupSessions();
   const online = activeSessions.size;
-
-  // всего игроков когда-либо
   const totalVisitors = Object.keys(progress).length;
 
   res.json({
@@ -303,48 +304,11 @@ app.get('/api/admin/analytics', async (req, res) => {
     chains: chainsStats,
     updatedAt: Date.now()
   });
-app.post('/api/admin/wall', async (req, res) => {
-  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-  const { nick, text } = req.body || {};
-  const cleanText = String(text || '').trim().slice(0, 140);
-  const cleanNick = String(nick || '').trim().slice(0, 24) || 'OPERATOR';
-  if(!cleanText) return res.status(400).json({ error: 'empty' });
-  const db = readDb();
-  db.wall = db.wall || [];
-  const msg = { id: 'w' + Date.now() + Math.floor(Math.random() * 999), nick: cleanNick, text: cleanText, at: Date.now() };
-  db.wall.push(msg);
-  if(db.wall.length > 200) db.wall = db.wall.slice(-200);
-  await writeDb(db);
-  res.json({ ok: true, ...msg });
-});
-
-app.put('/api/admin/wall/:id', async (req, res) => {
-  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-  const db = readDb();
-  const msg = (db.wall || []).find(m => m.id === req.params.id);
-  if(!msg) return res.status(404).json({ error: 'not found' });
-  const { nick, text } = req.body || {};
-  if(text !== undefined) msg.text = String(text).trim().slice(0, 140);
-  if(nick !== undefined) msg.nick = String(nick).trim().slice(0, 24) || msg.nick;
-  await writeDb(db);
-  res.json({ ok: true, ...msg });
-});
-});
+});   // ← ВОТ ОНА, ЗАКРЫВАЮЩАЯ analytics (раньше её не было в нужном месте)
 
 // ===== СТЕНА ПЕРЕХВАТОВ =====
-function adminOk(req){
-  const secret = process.env.JWT_SECRET || 'arrs-dev-secret';
-  const jwtLib = require('jsonwebtoken');
-  const cookies = req.cookies || {};
-  // пробуем верифицировать каждую cookie — какая является JWT-сессией, та и пройдёт
-  for(const name of Object.keys(cookies)){
-    try{ jwtLib.verify(cookies[name], secret); return true; }catch(e){}
-  }
-  return !!(req.headers['x-admin-key'] && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD);
-}
-
 const wallLast = new Map();
-const WALL_RATE = 60000; // 1 сообщение в минуту на визитора
+const WALL_RATE = 60000;
 
 app.get('/api/public/wall', (req, res) => {
   const db = readDb();
@@ -377,6 +341,33 @@ app.get('/api/admin/wall', (req, res) => {
   res.json(db.wall || []);
 });
 
+app.post('/api/admin/wall', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const { nick, text } = req.body || {};
+  const cleanText = String(text || '').trim().slice(0, 140);
+  const cleanNick = String(nick || '').trim().slice(0, 24) || 'OPERATOR';
+  if(!cleanText) return res.status(400).json({ error: 'empty' });
+  const db = readDb();
+  db.wall = db.wall || [];
+  const msg = { id: 'w' + Date.now() + Math.floor(Math.random() * 999), nick: cleanNick, text: cleanText, at: Date.now() };
+  db.wall.push(msg);
+  if(db.wall.length > 200) db.wall = db.wall.slice(-200);
+  await writeDb(db);
+  res.json({ ok: true, ...msg });
+});
+
+app.put('/api/admin/wall/:id', async (req, res) => {
+  if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  const db = readDb();
+  const msg = (db.wall || []).find(m => m.id === req.params.id);
+  if(!msg) return res.status(404).json({ error: 'not found' });
+  const { nick, text } = req.body || {};
+  if(text !== undefined) msg.text = String(text).trim().slice(0, 140);
+  if(nick !== undefined) msg.nick = String(nick).trim().slice(0, 24) || msg.nick;
+  await writeDb(db);
+  res.json({ ok: true, ...msg });
+});
+
 app.delete('/api/admin/wall/:id', async (req, res) => {
   if(!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
   const db = readDb();
@@ -385,7 +376,7 @@ app.delete('/api/admin/wall/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- статика: публичный терминал-сайт + панель администратора ----
+// ---- статика ----
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
